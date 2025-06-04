@@ -1,0 +1,4 @@
+C:/Cositas/Universi/TFM/OtroIntento/TFM_RAYTRACING/build/CMakeFiles/Vulkanlib.dir
+C:/Cositas/Universi/TFM/OtroIntento/TFM_RAYTRACING/build/CMakeFiles/VulkanProject.dir
+C:/Cositas/Universi/TFM/OtroIntento/TFM_RAYTRACING/build/CMakeFiles/ALL_BUILD.dir
+C:/Cositas/Universi/TFM/OtroIntento/TFM_RAYTRACING/build/CMakeFiles/ZERO_CHECK.dir

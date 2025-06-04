@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\Cositas\Universi\TFM\OtroIntento\TFM_RAYTRACING\lib\mylibrary.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="C:\Cositas\Universi\TFM\OtroIntento\TFM_RAYTRACING\lib\mylibrary.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Cositas\Universi\TFM\OtroIntento\TFM_RAYTRACING\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{45207938-F38E-3870-9371-A1E383CE1B38}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{6CB579FA-8F7C-3699-B7E3-8D1AA9E69B1B}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

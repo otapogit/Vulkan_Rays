@@ -1,0 +1,31 @@
+Mirar si cola dependiente para trazado de rayos
+
+Curso vulkan universidad :: Vulkan lectura series TU Wien
+
+Subir imágenes a Buffer Object?
+
+Vulkan Interop
+
+- Mallas de triángulos con metadatos
+	- Luces
+	- Geometría inspeccionable
+	- Geometría no inspeccionable (oclusiones)
+	- Definición cámara
+- Características imagen	
+(objetos opengl)
+
+
+- Salida: Imagen en textura
+
+- Que necesito para hacer una escena
+- Quitar Librería GLFW del core
+- Sacar resultado de imagen a un fichero
+- Revisar cámaras Vulkan
+
+
+Hacer si refleja con una luz rojo, si no intersecta gris, fondo negro.
+
+Instanciar y probar vulkan desde pgupv
+Para meter mi vulkan en pgupv sacar librería .lib, copiar cmake pgupv y cambiar a ese vulkan, añadir tmb a los cmake de los ejemplos
+
+cuidado con puntos intermedios: capas de validación, errores, etc.
