@@ -218,7 +218,6 @@ private:
 
 		*/
 
-
 		VkClearValue ClearValue;
 		ClearValue.color = ClearColor;
 
