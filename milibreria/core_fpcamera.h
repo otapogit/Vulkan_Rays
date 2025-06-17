@@ -57,4 +57,7 @@ private:
 	glm::vec3 m_velocity = glm::vec3(0.0f);
 	glm::vec2 m_oldMousePos = glm::vec2(0.0f);
 	glm::vec3 m_up = glm::vec3(0.0f);
+
+	float m_yaw;
+	float m_pitch;
 };

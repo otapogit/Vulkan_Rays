@@ -6,20 +6,21 @@ namespace core{
 	class GraphicsPipeline {
 
 	public:
-		GraphicsPipeline(VkDevice Device, GLFWwindow* pWindow, VkRenderPass RenderPass,const SimpleMesh* pMesh,
+		GraphicsPipeline(VkDevice Device, GLFWwindow* pWindow, VkRenderPass RenderPass,
 			int NumImages,std::vector<BufferMemory>& UniformBuffers, int UniformDataSize,VkShaderModule vs, VkShaderModule fs);
 		
 		~GraphicsPipeline();
 
 
 		void Bind(VkCommandBuffer CmdBuf, int ImageIndex);
+		void DrawMesh(VkCommandBuffer CmdBuf, const SimpleMesh& mesh);
 
 	private:
-		void CreateDescriptorSets(int NumImages, const SimpleMesh* pMesh, std::vector<BufferMemory>& UniformBuffers, int UniformDataSize);
+		void CreateDescriptorSets(int NumImages, std::vector<BufferMemory>& UniformBuffers, int UniformDataSize);
 		void CreateDescriptorPool(int NumImages);
 		void CreateDescriptorSetLayout(std::vector<BufferMemory>& UniformBuffers, int UniformDataSize);
 		void AllocateDescriptorSets(int NumImages);
-		void UpdateDescriptorSets(int NumImages, const SimpleMesh* pMesh, std::vector<BufferMemory>& UniformBuffers, int UniformDataSize);
+		void UpdateDescriptorSets(int NumImages, std::vector<BufferMemory>& UniformBuffers, int UniformDataSize);
 
 
 		VkDevice m_device = NULL;

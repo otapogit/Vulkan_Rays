@@ -137,7 +137,7 @@ private:
 
 	void CreatePipeline() {
 
-		m_pipeline = new core::GraphicsPipeline(m_vkcore.GetDevice(), m_pWindow, m_renderPass,&m_mesh,m_numImages,m_uniformBuffers,sizeof(UniformData), m_vs, m_fs);
+		m_pipeline = new core::GraphicsPipeline(m_vkcore.GetDevice(), m_pWindow, m_renderPass,m_numImages,m_uniformBuffers,sizeof(UniformData), m_vs, m_fs);
 	}
 
 	void CreateShaders() {
@@ -181,12 +181,12 @@ private:
 		};
 
 		std::vector<Vertex> vertices = {
-			Vertex({-4.0f,-2.0f,0.0f},{0.0f,0.0f}),
-			Vertex({-2.0f,-2.0f,0.0f},{0.0f,1.0f}),
-			Vertex({-3.0f,-3.0f,0.0f},{1.0f,1.0f}),
-			Vertex({-2.0f,-2.0f,0.0f},{0.0f,0.0f}),
-			Vertex({-4.0f,-2.0f,0.0f},{0.0f,1.0f}),
-			Vertex({-3.0f,-3.0f,0.0f},{1.0f,1.0f}),
+			Vertex({-4.0f,-4.0f,-4.0f},{0.0f,0.0f}),
+			Vertex({-4.0f,-4.0f,4.0f},{0.0f,1.0f}),
+			Vertex({4.0f,-4.0f,-4.0f},{1.0f,1.0f}),
+			Vertex({-4.0f,-4.0f,4.0f},{0.0f,0.0f}),
+			Vertex({4.0f,-4.0f,4.0f},{0.0f,1.0f}),
+			Vertex({4.0f,-4.0f,-4.0f},{1.0f,1.0f}),
 		};
 
 		m_mesh1.m_vertexBufferSize = sizeof(vertices[0]) * vertices.size();
@@ -259,12 +259,8 @@ private:
 
 			m_pipeline->Bind(m_cmdBufs[i],(int)i);
 
-			uint32_t VertexCount = m_mesh.vertexcount;
-			uint32_t InstanceCount = 1;
-			uint32_t FirstVertex = 0;
-			uint32_t FirstInstance = 0;
-
-			vkCmdDraw(m_cmdBufs[i], VertexCount, InstanceCount, FirstVertex, FirstInstance);
+			m_pipeline->DrawMesh(m_cmdBufs[i], m_mesh);
+			m_pipeline->DrawMesh(m_cmdBufs[i], m_mesh1);
 
 			vkCmdEndRenderPass(m_cmdBufs[i]);
 
@@ -290,7 +286,7 @@ private:
 		}
 		glm::vec3 Pos(1.0f, 1.0f, 1.0f);
 		glm::vec3 Target(0.0f, 0.0f, 0.0f);
-		glm::vec3 Up(0.0f, 1.0f, 0.0f);
+		glm::vec3 Up(0.0f, -1.0f, 0.0f);
 
 		m_pCamera = new CameraFirstPerson(Pos, Target, Up, FOV, m_windowWidth, m_windowHeight, znear, zfar);
 	}

@@ -519,7 +519,7 @@ namespace core {
 		vkUnmapMemory(m_device, StagingVB.m_mem);
 
 		// Step 5: create the final buffer
-		Usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		Usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 		MemProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 		BufferMemory VB = CreateBuffer(Size, Usage, MemProps);
 
@@ -636,6 +636,8 @@ namespace core {
 		return UniformBuffers;
 
 	}
+
+
 
 	BufferMemory VulkanCore::CreateUniformBuffer(size_t Size) {
 
