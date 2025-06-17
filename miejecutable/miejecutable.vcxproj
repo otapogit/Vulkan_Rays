@@ -105,7 +105,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Cositas\Universi\TFM\milibreria;$(VULKAN_SDK)/Include;$(glfw3_DIR)/include;C:\Cositas\Universi\TFM\Vulkan_Project\glm\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Cositas\Universi\TFM\milibreria;$(VULKAN_SDK)/Include;$(glfw3_DIR)/include;C:\Users\carlos\source\repos\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
