@@ -192,18 +192,28 @@ namespace core {
 		vkCmdDraw(CmdBuf, mesh.vertexcount, 1, 0, 0);
 	}
 
-	void GraphicsPipeline::CreateDescriptorSets(int NumImages, std::vector<BufferMemory>& UniformBuffers, int UniformDataSize) {
+	void GraphicsPipeline::CreateDescriptorSets(int NumImages, std::vector<BufferMemory>& UniformBuffers, int UniformDataSize, core::VulkanTexture* textur) {
 		CreateDescriptorPool(NumImages);
 		CreateDescriptorSetLayout(UniformBuffers, UniformDataSize);
 		AllocateDescriptorSets(NumImages);
-		UpdateDescriptorSets(NumImages, UniformBuffers, UniformDataSize);
+		UpdateDescriptorSets(NumImages, UniformBuffers, UniformDataSize,textur);
 	}
 
 	void GraphicsPipeline::CreateDescriptorPool(int NumImages) {
 
-		VkDescriptorPoolSize poolSize = {};
-		poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		poolSize.descriptorCount = (uint32_t)NumImages;
+		std::vector<VkDescriptorPoolSize> poolSizes;
+
+		// Pool para uniform buffers
+		VkDescriptorPoolSize uniformPoolSize = {};
+		uniformPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		uniformPoolSize.descriptorCount = (uint32_t)NumImages;
+		poolSizes.push_back(uniformPoolSize);
+
+		// Pool para texturas
+		VkDescriptorPoolSize samplerPoolSize = {};
+		samplerPoolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		samplerPoolSize.descriptorCount = (uint32_t)NumImages;
+		poolSizes.push_back(samplerPoolSize);
 
 		VkDescriptorPoolCreateInfo PoolInfo = {};
 		PoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -212,8 +222,8 @@ namespace core {
 		//Esto puede ser cambiado para pasar mas cosas
 		PoolInfo.maxSets = (uint32_t)NumImages;
 		//A lo mejor hay que cambiar las pools para poner las cosas en especifico tipo uniforms y tal
-		PoolInfo.poolSizeCount = 1;
-		PoolInfo.pPoolSizes = &poolSize;
+		PoolInfo.poolSizeCount = (uint32_t)poolSizes.size();
+		PoolInfo.pPoolSizes = poolSizes.data();
 
 		VkResult res = vkCreateDescriptorPool(m_device, &PoolInfo, NULL, &m_descriptorPool);
 		CHECK_VK_RESULT(res, "vkCreateDescriptorPool");
@@ -225,10 +235,10 @@ namespace core {
 
 		/*
 			AQUI SOLO ESTÁ PASANDO LOS VERTICES PARA PASAR MÁS COSAS EXTENDER ESTO
-		*/
-		std::vector<VkDescriptorSetLayoutBinding> LayoutBindings;
-		/*
+		
 
+		
+				std::vector<VkDescriptorSetLayoutBinding> LayoutBindings;
 		VkDescriptorSetLayoutBinding VertexShaderLayoutBinding_VB = {};
 		VertexShaderLayoutBinding_VB.binding = 0;
 		VertexShaderLayoutBinding_VB.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -237,6 +247,8 @@ namespace core {
 
 		LayoutBindings.push_back(VertexShaderLayoutBinding_VB);
 		*/
+		std::vector<VkDescriptorSetLayoutBinding> LayoutBindings;
+
 		VkDescriptorSetLayoutBinding VertexShaderLayoutBinding_Uniform = {};
 		VertexShaderLayoutBinding_Uniform.binding = 1;
 		VertexShaderLayoutBinding_Uniform.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -244,9 +256,18 @@ namespace core {
 		//Obviamente si es necesario ampliar esto
 		VertexShaderLayoutBinding_Uniform.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-		
+
 		LayoutBindings.push_back(VertexShaderLayoutBinding_Uniform);
-		
+
+		// CORREGIDO: Usar la variable correcta
+		VkDescriptorSetLayoutBinding FragmentShaderLayoutBinding = {};
+		FragmentShaderLayoutBinding.binding = 2;
+		FragmentShaderLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		FragmentShaderLayoutBinding.descriptorCount = 1;
+		FragmentShaderLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+		LayoutBindings.push_back(FragmentShaderLayoutBinding);
+
 
 		VkDescriptorSetLayoutCreateInfo LayoutInfo = {};
 		LayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -276,8 +297,10 @@ namespace core {
 		VkResult res = vkAllocateDescriptorSets(m_device, &AllocInfo, m_descriptorSets.data());
 		CHECK_VK_RESULT(res, "vkAllocateDescriptorSets\n");
 	}
-	void GraphicsPipeline::UpdateDescriptorSets(int NumImages, std::vector<BufferMemory>& UniformBuffers, int UniformDataSize) {
+	void GraphicsPipeline::UpdateDescriptorSets(int NumImages, std::vector<BufferMemory>& UniformBuffers, int UniformDataSize, core::VulkanTexture* texture) {
 		std::vector<VkWriteDescriptorSet> WriteDescriptorSet;
+
+		VkDescriptorImageInfo ImageInfo;
 
 		for (size_t i = 0; i < NumImages; i++) {
 			VkDescriptorBufferInfo BufferInfo_Uniform = {};
@@ -295,6 +318,47 @@ namespace core {
 			wds_u.pBufferInfo = &BufferInfo_Uniform;
 
 			WriteDescriptorSet.push_back(wds_u);
+			// Textura (si se proporciona)
+			if (texture) {
+				VkDescriptorImageInfo ImageInfo = {};
+				ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				ImageInfo.imageView = texture->m_view;
+				ImageInfo.sampler = texture->m_sampler;
+
+				VkWriteDescriptorSet wds_t = {};
+				wds_t.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+				wds_t.dstSet = m_descriptorSets[i];
+				wds_t.dstBinding = 2;
+				wds_t.dstArrayElement = 0;
+				wds_t.descriptorCount = 1;
+				wds_t.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+				wds_t.pImageInfo = &ImageInfo;
+
+				WriteDescriptorSet.push_back(wds_t);
+			}
+		}
+
+		vkUpdateDescriptorSets(m_device, (uint32_t)WriteDescriptorSet.size(), WriteDescriptorSet.data(), 0, NULL);
+	}
+	void GraphicsPipeline::UpdateTexture(core::VulkanTexture* texture) {
+		std::vector<VkWriteDescriptorSet> WriteDescriptorSet;
+
+		for (size_t i = 0; i < m_descriptorSets.size(); i++) {
+			VkDescriptorImageInfo ImageInfo = {};
+			ImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			ImageInfo.imageView = texture->m_view;
+			ImageInfo.sampler = texture->m_sampler;
+
+			VkWriteDescriptorSet wds_t = {};
+			wds_t.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			wds_t.dstSet = m_descriptorSets[i];
+			wds_t.dstBinding = 2;
+			wds_t.dstArrayElement = 0;
+			wds_t.descriptorCount = 1;
+			wds_t.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			wds_t.pImageInfo = &ImageInfo;
+
+			WriteDescriptorSet.push_back(wds_t);
 		}
 
 		vkUpdateDescriptorSets(m_device, (uint32_t)WriteDescriptorSet.size(), WriteDescriptorSet.data(), 0, NULL);

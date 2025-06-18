@@ -8,6 +8,8 @@
 #include "utils.cpp"
 #include <cassert>
 
+
+
 namespace core {
 
 
@@ -277,38 +279,7 @@ namespace core {
 		return SurfaceFormats[0];
 	}
 
-	VkImageView CreateImageView(VkDevice Device, VkImage Image, VkFormat Format, VkImageAspectFlags AspectFlags,
-		VkImageViewType ViewType, uint32_t LayerCount, uint32_t mipLevels) {
-		
-		VkComponentMapping comps = {};
-		comps.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-		comps.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-		comps.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-		comps.a = VK_COMPONENT_SWIZZLE_IDENTITY;
 
-		VkImageSubresourceRange SubresourceRange = {};
-		SubresourceRange.aspectMask = AspectFlags;
-		SubresourceRange.baseMipLevel = 0;
-		SubresourceRange.levelCount = mipLevels;
-		SubresourceRange.baseArrayLayer = 0;
-		SubresourceRange.layerCount = LayerCount;
-
-		VkImageViewCreateInfo ViewInfo = {};
-		ViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		ViewInfo.pNext = NULL;
-		ViewInfo.flags = 0;
-		ViewInfo.image = Image;
-		ViewInfo.viewType = ViewType;
-		ViewInfo.format = Format;
-		ViewInfo.components = comps;
-		ViewInfo.subresourceRange = SubresourceRange;
-
-		VkImageView ImageView;
-		VkResult res = vkCreateImageView(Device, &ViewInfo, NULL, &ImageView);
-		CHECK_VK_RESULT(res, "vkCreateImageView\n");
-		return ImageView;
-
-	}
 
 	void VulkanCore::CreateSwapChain() {
 		const VkSurfaceCapabilitiesKHR& SurfaceCaps = m_physDevices.Selected().m_surfaceCaps;
@@ -366,7 +337,7 @@ namespace core {
 		int MipLevels = 1;
 		for (uint32_t i = 0; i < NumSwapChainImages; i++) {
 			m_imageViews[i] = CreateImageView(m_device, m_images[i], SurfaceFormat.format,
-					VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_VIEW_TYPE_2D, LayerCount, MipLevels);
+					VK_IMAGE_ASPECT_COLOR_BIT);
 		}
 	}
 
@@ -375,7 +346,7 @@ namespace core {
 		VkCommandPoolCreateInfo cmdPoolCreateInfo = {};
 		cmdPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		cmdPoolCreateInfo.pNext = NULL;
-		cmdPoolCreateInfo.flags = 0;
+		cmdPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 		cmdPoolCreateInfo.queueFamilyIndex = m_queueFamily;
 
 		VkResult res = vkCreateCommandPool(m_device, &cmdPoolCreateInfo, NULL, &m_cmdBufPool);
@@ -607,9 +578,7 @@ namespace core {
 
 		vkCmdCopyBuffer(m_copyCmdBuf, Src, Dst, 1, &BufferCopy);
 
-		vkEndCommandBuffer(m_copyCmdBuf);
-		m_queue.SubmitSync(m_copyCmdBuf);
-		m_queue.WaitIdle();
+		SubmitCopyCommand();
 	}
 
 	void BufferMemory::Destroy(VkDevice Device)
@@ -638,7 +607,6 @@ namespace core {
 	}
 
 
-
 	BufferMemory VulkanCore::CreateUniformBuffer(size_t Size) {
 
 		BufferMemory Buffer;
@@ -659,4 +627,209 @@ namespace core {
 		memcpy(pMem, pData, Size);
 		vkUnmapMemory(Device, m_mem);
 	}
+
+	void VulkanCore::CreateTexture(const char* pFilename, VulkanTexture& Tex)
+	{
+		int ImageWidth = 0;
+		int ImageHeight = 0;
+		int ImageChannels = 0;
+
+		stbi_set_flip_vertically_on_load(1);
+
+		// Step #1: load the image pixels
+		stbi_uc* pPixels = stbi_load(pFilename, &ImageWidth, &ImageHeight, &ImageChannels, STBI_rgb_alpha);
+
+		if (!pPixels) {
+			printf("Error loading texture from '%s'\n", pFilename);
+			exit(1);
+		}
+
+		// Step #2: create the image object and populate it with pixels
+		VkFormat Format = VK_FORMAT_R8G8B8A8_SRGB;
+		CreateTextureImageFromData(Tex, pPixels, ImageWidth, ImageHeight, Format);
+
+		// Step #3: release the image pixels. We don't need them after this point
+		stbi_image_free(pPixels);
+
+		// Step #4: create the image view
+		VkImageAspectFlags AspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
+		Tex.m_view = CreateImageView(m_device, Tex.m_image, Format, AspectFlags);
+
+		VkFilter MinFilter = VK_FILTER_LINEAR;
+		VkFilter MaxFilter = VK_FILTER_LINEAR;
+		VkSamplerAddressMode AddressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+		// Step #5: create the texture sampler
+		Tex.m_sampler = CreateTextureSampler(m_device, MinFilter, MaxFilter, AddressMode);
+
+		printf("Texture from '%s' created\n", pFilename);
+	}
+
+
+	void VulkanCore::CreateTextureFromData(const void* pPixels, int ImageWidth, int ImageHeight, VulkanTexture& Tex)
+	{
+		// Step #1: create the image object and populate it with pixels
+		VkFormat Format = VK_FORMAT_R8G8B8A8_SRGB;
+		CreateTextureImageFromData(Tex, pPixels, ImageWidth, ImageHeight, Format);
+
+		// Step #2: create the image view
+		VkImageAspectFlags AspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
+		Tex.m_view = CreateImageView(m_device, Tex.m_image, Format, AspectFlags);
+
+		VkFilter MinFilter = VK_FILTER_LINEAR;
+		VkFilter MaxFilter = VK_FILTER_LINEAR;
+		VkSamplerAddressMode AddressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+		// Step #3: create the texture sampler
+		Tex.m_sampler = CreateTextureSampler(m_device, MinFilter, MaxFilter, AddressMode);
+
+		printf("Texture from data created\n");
+	}
+
+
+	void VulkanTexture::Destroy(VkDevice Device)
+	{
+		vkDestroySampler(Device, m_sampler, NULL);
+		vkDestroyImageView(Device, m_view, NULL);
+		vkDestroyImage(Device, m_image, NULL);
+		vkFreeMemory(Device, m_mem, NULL);
+	}
+
+	void VulkanCore::CreateTextureImageFromData(VulkanTexture& Tex, const void* pPixels,
+		uint32_t ImageWidth, uint32_t ImageHeight, VkFormat TexFormat)
+	{
+		VkImageUsageFlagBits Usage = (VkImageUsageFlagBits)(VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+			VK_IMAGE_USAGE_SAMPLED_BIT);
+		//device local es en la gpu
+		VkMemoryPropertyFlagBits PropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+		CreateImage(Tex, ImageWidth, ImageHeight, TexFormat, Usage, PropertyFlags);
+
+		UpdateTextureImage(Tex, ImageWidth, ImageHeight, TexFormat, pPixels);
+	}
+
+
+	void VulkanCore::CreateImage(VulkanTexture& Tex, uint32_t ImageWidth, uint32_t ImageHeight, VkFormat TexFormat,
+		VkImageUsageFlags UsageFlags, VkMemoryPropertyFlagBits PropertyFlags)
+	{
+		VkImageCreateInfo ImageInfo = {};
+		ImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		ImageInfo.pNext = NULL;
+		ImageInfo.flags = 0;
+		ImageInfo.imageType = VK_IMAGE_TYPE_2D;
+		ImageInfo.format = TexFormat;
+		VkExtent3D ex = {};
+		ex.width = ImageWidth;
+		ex.height = ImageHeight;
+		ex.depth = 1;
+		ImageInfo.extent = ex;
+		ImageInfo.mipLevels = 1;
+		ImageInfo.arrayLayers = 1;
+		ImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		ImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+		ImageInfo.usage = UsageFlags;
+		ImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		ImageInfo.queueFamilyIndexCount = 0;
+		ImageInfo.pQueueFamilyIndices = NULL;
+		ImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+
+		// Step #1: create the image object
+		VkResult res = vkCreateImage(m_device, &ImageInfo, NULL, &Tex.m_image);
+		CHECK_VK_RESULT(res, "vkCreateImage error");
+
+		// Step 2: get the buffer memory requirements
+		VkMemoryRequirements MemReqs = { 0 };
+		vkGetImageMemoryRequirements(m_device, Tex.m_image, &MemReqs);
+		printf("Image requires %d bytes\n", (int)MemReqs.size);
+
+		// Step 3: get the memory type index
+		uint32_t MemoryTypeIndex = GetMemoryTypeIndex(MemReqs.memoryTypeBits, PropertyFlags);
+		printf("Memory type index %d\n", MemoryTypeIndex);
+
+		// Step 4: allocate memory
+		VkMemoryAllocateInfo MemAllocInfo = {};
+		MemAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		MemAllocInfo.pNext = NULL;
+		MemAllocInfo.allocationSize = MemReqs.size;
+		MemAllocInfo.memoryTypeIndex = MemoryTypeIndex;
+
+		res = vkAllocateMemory(m_device, &MemAllocInfo, NULL, &Tex.m_mem);
+		CHECK_VK_RESULT(res, "vkAllocateMemory error");
+
+		// Step 5: bind memory
+		res = vkBindImageMemory(m_device, Tex.m_image, Tex.m_mem, 0);
+		CHECK_VK_RESULT(res, "vkBindBufferMemory error %d\n");
+	}
+
+
+	void VulkanCore::UpdateTextureImage(VulkanTexture& Tex, uint32_t ImageWidth, uint32_t ImageHeight,
+		VkFormat TexFormat, const void* pPixels)
+	{
+		int BytesPerPixel = GetBytesPerTexFormat(TexFormat);
+
+		VkDeviceSize LayerSize = ImageWidth * ImageHeight * BytesPerPixel;
+		int LayerCount = 1;
+		VkDeviceSize ImageSize = LayerCount * LayerSize;
+
+		VkBufferUsageFlags Usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+		VkMemoryPropertyFlags Properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+		BufferMemory StagingTex = CreateBuffer(ImageSize, Usage, Properties);
+
+		StagingTex.Update(m_device, pPixels, ImageSize);
+
+		TransitionImageLayout(Tex.m_image, TexFormat,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+		CopyBufferToImage(Tex.m_image, StagingTex.m_buffer, ImageWidth, ImageHeight);
+
+		TransitionImageLayout(Tex.m_image, TexFormat,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+		StagingTex.Destroy(m_device);
+	}
+
+
+	void VulkanCore::TransitionImageLayout(VkImage& Image, VkFormat Format,
+		VkImageLayout OldLayout, VkImageLayout NewLayout)
+	{
+		BeginCommandBuffer(m_copyCmdBuf, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+		ImageMemBarrier(m_copyCmdBuf, Image, Format, OldLayout, NewLayout);
+
+		SubmitCopyCommand();
+	}
+	
+	void VulkanCore::CopyBufferToImage(VkImage Dst, VkBuffer Src, uint32_t ImageWidth, uint32_t ImageHeight)
+	{
+		BeginCommandBuffer(m_copyCmdBuf, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+		VkBufferImageCopy BufferImageCopy = {};
+		BufferImageCopy.bufferOffset = 0;
+		BufferImageCopy.bufferRowLength = 0;
+		BufferImageCopy.bufferImageHeight = 0;
+		BufferImageCopy.imageSubresource = VkImageSubresourceLayers {
+			VK_IMAGE_ASPECT_COLOR_BIT,//.aspectMask 
+			0,//.mipLevel 
+			0,//.baseArrayLayer 
+			1//.layerCount 
+		};
+		BufferImageCopy.imageOffset = VkOffset3D {0,0,0};
+		BufferImageCopy.imageExtent = VkExtent3D {ImageWidth,ImageHeight,1 };
+
+
+		vkCmdCopyBufferToImage(m_copyCmdBuf, Src, Dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &BufferImageCopy);
+		SubmitCopyCommand();
+	}
+
+	void VulkanCore::SubmitCopyCommand()
+	{
+		vkEndCommandBuffer(m_copyCmdBuf);
+
+		m_queue.SubmitSync(m_copyCmdBuf);
+
+		m_queue.WaitIdle();
+	}
+
 }

@@ -103,7 +103,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(Vulkan_SDK)/Include;%(AdditionalIncludeDirectories);C:\Users\carlos\source\repos\glfw\include;C:\Cositas\Universi\TFM\glslang\include;C:\Cositas\Universi\TFM\Vulkan_Project\glm\glm</AdditionalIncludeDirectories>
     </ClCompile>
@@ -141,9 +141,12 @@
     <ClCompile Include="core_shader.cpp" />
     <ClCompile Include="core_wrapper.cpp" />
     <ClCompile Include="physical_device.cpp" />
+    <ClCompile Include="stb_image.cpp" />
     <ClCompile Include="utils.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="3rdParty\stb_image.h" />
+    <ClInclude Include="3rdParty\stb_image_write.h" />
     <ClInclude Include="core.h" />
     <ClInclude Include="core_glfw.h" />
     <ClInclude Include="core_graphics_pipeline.h" />

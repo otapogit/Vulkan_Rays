@@ -58,7 +58,7 @@ public:
 
 		CreateVertexBuffer();
 		CreateVertexBuffer2();
-
+		LoadTexture();
 		CreateUniformBuffers();
 
 		CreatePipeline();
@@ -133,6 +133,11 @@ private:
 
 	}
 
+	void LoadTexture() {
+		m_mesh.m_pTex = new core::VulkanTexture;
+		m_vkcore.CreateTexture("hqdefault.jpg", *(m_mesh.m_pTex));
+		m_mesh1.m_pTex = m_mesh.m_pTex;
+	}
 
 
 	void CreatePipeline() {
@@ -179,14 +184,17 @@ private:
 			glm::vec3 Pos;
 			glm::vec2 Tex;
 		};
-
+		float size = 5.0f; // Radio desde el centro
 		std::vector<Vertex> vertices = {
-			Vertex({-4.0f,-4.0f,-4.0f},{0.0f,0.0f}),
-			Vertex({-4.0f,-4.0f,4.0f},{0.0f,1.0f}),
-			Vertex({4.0f,-4.0f,-4.0f},{1.0f,1.0f}),
-			Vertex({-4.0f,-4.0f,4.0f},{0.0f,0.0f}),
-			Vertex({4.0f,-4.0f,4.0f},{0.0f,1.0f}),
-			Vertex({4.0f,-4.0f,-4.0f},{1.0f,1.0f}),
+			// Primer triángulo
+			Vertex({-size, 0.0f, -size}, {0.0f, 0.0f}), // Esquina inferior-izquierda
+			Vertex({ size, 0.0f, -size}, {1.0f, 0.0f}), // Esquina inferior-derecha  
+			Vertex({ size, 0.0f,  size}, {1.0f, 1.0f}), // Esquina superior-derecha
+
+			// Segundo triángulo
+			Vertex({-size, 0.0f, -size}, {0.0f, 0.0f}), // Esquina inferior-izquierda
+			Vertex({ size, 0.0f,  size}, {1.0f, 1.0f}), // Esquina superior-derecha
+			Vertex({-size, 0.0f,  size}, {0.0f, 1.0f})  // Esquina superior-izquierda
 		};
 
 		m_mesh1.m_vertexBufferSize = sizeof(vertices[0]) * vertices.size();
@@ -216,6 +224,8 @@ private:
 
 		VkImageMemoryBarrier ClearToPresentBarrier = {};
 
+		Ahora solo soporta 1 textura, para soportar multiples hacer un array de samplers y elegir una de esas mediante pushconstants de cada una
+
 		*/
 
 		VkClearValue ClearValue;
@@ -232,7 +242,7 @@ private:
 		RenderPassBeginInfo.clearValueCount = 1;
 		RenderPassBeginInfo.pClearValues = &ClearValue;
 
-
+		m_pipeline->UpdateTexture(m_mesh.m_pTex);
 
 		for (uint i = 0; i < m_cmdBufs.size(); i++) {
 
@@ -259,8 +269,8 @@ private:
 
 			m_pipeline->Bind(m_cmdBufs[i],(int)i);
 
-			m_pipeline->DrawMesh(m_cmdBufs[i], m_mesh);
 			m_pipeline->DrawMesh(m_cmdBufs[i], m_mesh1);
+			m_pipeline->DrawMesh(m_cmdBufs[i], m_mesh);
 
 			vkCmdEndRenderPass(m_cmdBufs[i]);
 
@@ -305,6 +315,7 @@ private:
 	VkShaderModule m_fs;
 	core::GraphicsPipeline* m_pipeline = NULL;
 	core::SimpleMesh m_mesh, m_mesh1;
+	core::VulkanTexture m_texture1, m_texture2;
 	CameraFirstPerson* m_pCamera = NULL;
 
 	std::vector<core::BufferMemory> m_uniformBuffers;

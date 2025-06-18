@@ -5,6 +5,8 @@
 #include "physical_device.h"
 #include "core_wrapper.h"
 #include "core_queue.h"
+
+#include "3rdParty/stb_image.h"
 namespace core {
 	class BufferMemory {
 	public:
@@ -16,6 +18,18 @@ namespace core {
 
 		void Destroy(VkDevice device);
 		void Update(VkDevice Device, const void* pData, size_t Size);
+	};
+
+	class VulkanTexture {
+	public:
+		VulkanTexture() {}
+
+		VkImage m_image = VK_NULL_HANDLE;
+		VkDeviceMemory m_mem = VK_NULL_HANDLE;
+		VkImageView m_view = VK_NULL_HANDLE;
+		VkSampler m_sampler = VK_NULL_HANDLE;
+
+		void Destroy(VkDevice Device); 
 	};
 
 	class VulkanCore {
@@ -34,6 +48,7 @@ namespace core {
 		BufferMemory CreateVertexBuffer(const void* pVertices, size_t Size);
 		//BufferMemory CreateSimpleVertexBuffer(const void* pVertices, size_t Size);
 		std::vector<BufferMemory> CreateUniformBuffers(size_t Size);
+		void CreateTexture(const char* filename, VulkanTexture& Tex);
 
 	private:
 		void CreateInstance(const char* pAppName);
@@ -47,6 +62,14 @@ namespace core {
 		uint32_t GetMemoryTypeIndex(uint32_t MemTypeBitsMask, VkMemoryPropertyFlags ReqMemPropFlags);
 
 		BufferMemory CreateUniformBuffer(size_t Size);
+		void CreateTextureFromData(const void* pPixels, int ImageWidth, int ImageHeight, VulkanTexture& Tex);
+		void CreateTextureImageFromData(VulkanTexture& Tex, const void* pPixels, uint32_t ImageWidth, uint32_t ImageHeight, VkFormat TexFormat);
+		void UpdateTextureImage(VulkanTexture& Tex, uint32_t ImageWidth, uint32_t ImageHeight,VkFormat TexFormat, const void* pPixels);
+		void CreateImage(VulkanTexture& Tex, uint32_t ImageWidth, uint32_t ImageHeight, VkFormat TexFormat,VkImageUsageFlags UsageFlags, VkMemoryPropertyFlagBits PropertyFlags);
+		void TransitionImageLayout(VkImage& Image, VkFormat Format,VkImageLayout OldLayout, VkImageLayout NewLayout);
+		void CopyBufferToImage(VkImage Dst, VkBuffer Src, uint32_t ImageWidth, uint32_t ImageHeight);
+		void SubmitCopyCommand();
+
 
 		VkInstance m_instance = NULL;
 		VkDebugUtilsMessengerEXT m_debugMessenger = VK_NULL_HANDLE;

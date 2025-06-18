@@ -14,13 +14,13 @@ namespace core{
 
 		void Bind(VkCommandBuffer CmdBuf, int ImageIndex);
 		void DrawMesh(VkCommandBuffer CmdBuf, const SimpleMesh& mesh);
-
+		void UpdateTexture(core::VulkanTexture* texture);
 	private:
-		void CreateDescriptorSets(int NumImages, std::vector<BufferMemory>& UniformBuffers, int UniformDataSize);
+		void CreateDescriptorSets(int NumImages, std::vector<BufferMemory>& UniformBuffers, int UniformDataSize,core::VulkanTexture* texture = nullptr);
 		void CreateDescriptorPool(int NumImages);
 		void CreateDescriptorSetLayout(std::vector<BufferMemory>& UniformBuffers, int UniformDataSize);
 		void AllocateDescriptorSets(int NumImages);
-		void UpdateDescriptorSets(int NumImages, std::vector<BufferMemory>& UniformBuffers, int UniformDataSize);
+		void UpdateDescriptorSets(int NumImages, std::vector<BufferMemory>& UniformBuffers, int UniformDataSize,core::VulkanTexture* texture = nullptr);
 
 
 		VkDevice m_device = NULL;
