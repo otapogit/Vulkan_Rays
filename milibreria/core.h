@@ -69,7 +69,7 @@ namespace core {
 		void TransitionImageLayout(VkImage& Image, VkFormat Format,VkImageLayout OldLayout, VkImageLayout NewLayout);
 		void CopyBufferToImage(VkImage Dst, VkBuffer Src, uint32_t ImageWidth, uint32_t ImageHeight);
 		void SubmitCopyCommand();
-
+		void CreateDepthResources();
 
 		VkInstance m_instance = NULL;
 		VkDebugUtilsMessengerEXT m_debugMessenger = VK_NULL_HANDLE;
@@ -90,6 +90,8 @@ namespace core {
 		std::vector<VkFramebuffer> m_frameBuffers;
 		VkCommandBuffer m_copyCmdBuf;
 	
+		//No necesita ni memoria ni sampler
+		std::vector<core::VulkanTexture> m_depthImages;
 	};
 
 

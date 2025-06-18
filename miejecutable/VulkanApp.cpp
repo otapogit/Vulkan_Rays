@@ -12,6 +12,7 @@
 #include <GLFW/glfw3.h>
 
 #include "core_fpcamera.h"
+#include <array>
 
 #define WINDOW_HEIGHT 1080
 #define WINDOW_WIDTH 1920
@@ -187,14 +188,14 @@ private:
 		float size = 5.0f; // Radio desde el centro
 		std::vector<Vertex> vertices = {
 			// Primer triángulo
-			Vertex({-size, 0.0f, -size}, {0.0f, 0.0f}), // Esquina inferior-izquierda
-			Vertex({ size, 0.0f, -size}, {1.0f, 0.0f}), // Esquina inferior-derecha  
-			Vertex({ size, 0.0f,  size}, {1.0f, 1.0f}), // Esquina superior-derecha
+			Vertex({-size, -4.0f, -size}, {0.0f, 0.0f}), // Esquina inferior-izquierda
+			Vertex({ size, -4.0f, -size}, {1.0f, 0.0f}), // Esquina inferior-derecha  
+			Vertex({ size, -4.0f,  size}, {1.0f, 1.0f}), // Esquina superior-derecha
 
 			// Segundo triángulo
-			Vertex({-size, 0.0f, -size}, {0.0f, 0.0f}), // Esquina inferior-izquierda
-			Vertex({ size, 0.0f,  size}, {1.0f, 1.0f}), // Esquina superior-derecha
-			Vertex({-size, 0.0f,  size}, {0.0f, 1.0f})  // Esquina superior-izquierda
+			Vertex({-size, -4.0f, -size}, {0.0f, 0.0f}), // Esquina inferior-izquierda
+			Vertex({ size, -4.0f,  size}, {1.0f, 1.0f}), // Esquina superior-derecha
+			Vertex({-size, -4.0f,  size}, {0.0f, 1.0f})  // Esquina superior-izquierda
 		};
 
 		m_mesh1.m_vertexBufferSize = sizeof(vertices[0]) * vertices.size();
@@ -228,8 +229,12 @@ private:
 
 		*/
 
-		VkClearValue ClearValue;
-		ClearValue.color = ClearColor;
+		std::array<VkClearValue, 2> ClearValue = {
+			VkClearValue{},  // Se inicializa a cero
+			VkClearValue{}   // Se inicializa a cero
+		};
+		ClearValue[0].color = ClearColor;
+		ClearValue[1].depthStencil = { 1.0f, 0 };
 
 		VkRenderPassBeginInfo RenderPassBeginInfo = {};
 		RenderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -239,8 +244,10 @@ private:
 		rect.offset = { 0,0 };
 		rect.extent = { WINDOW_WIDTH,WINDOW_HEIGHT-25 };
 		RenderPassBeginInfo.renderArea = rect;
-		RenderPassBeginInfo.clearValueCount = 1;
-		RenderPassBeginInfo.pClearValues = &ClearValue;
+		RenderPassBeginInfo.clearValueCount = (uint32_t)ClearValue.size();
+		RenderPassBeginInfo.pClearValues = ClearValue.data();
+
+
 
 		m_pipeline->UpdateTexture(m_mesh.m_pTex);
 
@@ -269,8 +276,8 @@ private:
 
 			m_pipeline->Bind(m_cmdBufs[i],(int)i);
 
-			m_pipeline->DrawMesh(m_cmdBufs[i], m_mesh1);
 			m_pipeline->DrawMesh(m_cmdBufs[i], m_mesh);
+			m_pipeline->DrawMesh(m_cmdBufs[i], m_mesh1);
 
 			vkCmdEndRenderPass(m_cmdBufs[i]);
 

@@ -5,7 +5,7 @@
 #include <GLFW/glfw3.h>
 #include <vector>
 #include "core.h"
-#include "utils.cpp"
+#include "utils.h"
 #include <cassert>
 
 
@@ -85,6 +85,8 @@ namespace core {
 
 		m_queue.Init(m_device, m_swapChain, m_queueFamily, 0);
 		CreateCommandBuffer(1, &m_copyCmdBuf);
+
+		CreateDepthResources();
 	}
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
@@ -407,6 +409,27 @@ namespace core {
 		AttachRef.attachment = 0;
 		AttachRef.layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
+		VkFormat DepthFormat = m_physDevices.Selected().m_depthFormat;
+
+		VkAttachmentDescription DepthAttachment = {};
+		DepthAttachment.flags = 0;
+		DepthAttachment.format = DepthFormat;
+		DepthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+		DepthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		DepthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		DepthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		DepthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		DepthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		DepthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentReference DepthAttachmentRef = {};
+		DepthAttachmentRef.attachment = 1;
+		DepthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		std::vector<VkAttachmentDescription> Attachments;
+		Attachments.push_back(AttachDesc);
+		Attachments.push_back(DepthAttachment);
+
 		VkSubpassDescription SubpassDesc = {};
 		SubpassDesc.flags = 0;
 		SubpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -415,7 +438,7 @@ namespace core {
 		SubpassDesc.colorAttachmentCount = 1;
 		SubpassDesc.pResolveAttachments = NULL;
 		SubpassDesc.pColorAttachments = &AttachRef;
-		SubpassDesc.pDepthStencilAttachment = NULL;
+		SubpassDesc.pDepthStencilAttachment = &DepthAttachmentRef;
 		SubpassDesc.preserveAttachmentCount = 0;
 		SubpassDesc.pPreserveAttachments = NULL;
 
@@ -423,8 +446,8 @@ namespace core {
 		RenderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 		RenderPassCreateInfo.pNext = NULL;
 		RenderPassCreateInfo.flags = 0;
-		RenderPassCreateInfo.attachmentCount = 1;
-		RenderPassCreateInfo.pAttachments = &AttachDesc;
+		RenderPassCreateInfo.attachmentCount = (uint32_t)Attachments.size();
+		RenderPassCreateInfo.pAttachments = Attachments.data();
 		RenderPassCreateInfo.subpassCount = 1;
 		RenderPassCreateInfo.pSubpasses = &SubpassDesc;
 		RenderPassCreateInfo.dependencyCount = 0;
@@ -448,14 +471,17 @@ namespace core {
 		VkResult res;
 
 		for (uint32_t i = 0; i < m_images.size(); i++) {
+			std::vector<VkImageView> Attachments;
+			Attachments.push_back(m_imageViews[i]);
+			Attachments.push_back(m_depthImages[i].m_view);
+
 			VkFramebufferCreateInfo fbCreateInfo = {};
 			fbCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 			fbCreateInfo.renderPass = RenderPass;
-			fbCreateInfo.attachmentCount = 1;
-			fbCreateInfo.pAttachments = &m_imageViews[i];
+			fbCreateInfo.attachmentCount = (uint32_t) Attachments.size();
+			fbCreateInfo.pAttachments = Attachments.data();
 			fbCreateInfo.width = WindowWidth;
 			fbCreateInfo.height = WindowHeight;
-
 			fbCreateInfo.layers = 1;
 
 			res = vkCreateFramebuffer(m_device, &fbCreateInfo, NULL, &m_frameBuffers[i]);
@@ -830,6 +856,32 @@ namespace core {
 		m_queue.SubmitSync(m_copyCmdBuf);
 
 		m_queue.WaitIdle();
+	}
+
+	void VulkanCore::CreateDepthResources()
+	{
+		int NumSwapChainImages = (int)m_images.size();
+
+		m_depthImages.resize(NumSwapChainImages);
+
+		VkFormat DepthFormat = m_physDevices.Selected().m_depthFormat;
+
+		int WindowWidth, WindowHeight;
+		glfwGetWindowSize(m_pWindow, &WindowWidth, &WindowHeight);
+
+		for (int i = 0; i < NumSwapChainImages; i++) {
+			VkImageUsageFlagBits Usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+			VkMemoryPropertyFlagBits PropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+			CreateImage(m_depthImages[i], WindowWidth, WindowHeight, DepthFormat,
+				Usage, PropertyFlags);
+
+			VkImageLayout OldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			VkImageLayout NewLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			TransitionImageLayout(m_depthImages[i].m_image, DepthFormat, OldLayout, NewLayout);
+
+			m_depthImages[i].m_view = CreateImageView(m_device, m_depthImages[i].m_image,
+				DepthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+		}
 	}
 
 }

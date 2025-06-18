@@ -1,15 +1,5 @@
 #pragma once
-#include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <vulkan/vulkan_core.h>
-#include <stdarg.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-
-#include <fstream>
-#include <iostream>
-#include <string>
+#include "utils.h"
 
 namespace core {
 
@@ -74,5 +64,33 @@ namespace core {
 		}
 
 		return 0;
+	}
+
+	bool HasStencilComponent(VkFormat Format)
+	{
+		return ((Format == VK_FORMAT_D32_SFLOAT_S8_UINT) ||
+			(Format == VK_FORMAT_D24_UNORM_S8_UINT));
+	}
+
+	VkFormat FindSupportedFormat(VkPhysicalDevice Device, const std::vector<VkFormat>& Candidates,
+		VkImageTiling Tiling, VkFormatFeatureFlags Features)
+	{
+		for (int i = 0; i < Candidates.size(); i++) {
+			VkFormat Format = Candidates[i];
+			VkFormatProperties Props;
+			vkGetPhysicalDeviceFormatProperties(Device, Format, &Props);
+
+			if ((Tiling == VK_IMAGE_TILING_LINEAR) &&
+				(Props.linearTilingFeatures & Features) == Features) {
+				return Format;
+			}
+			else if (Tiling == VK_IMAGE_TILING_OPTIMAL &&
+				(Props.optimalTilingFeatures & Features) == Features) {
+				return Format;
+			}
+		}
+
+		printf("Failed to find supported format!\n");
+		exit(1);
 	}
 }

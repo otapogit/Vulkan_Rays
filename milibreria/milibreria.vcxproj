@@ -156,6 +156,7 @@
     <ClInclude Include="core_utils.h" />
     <ClInclude Include="core_wrapper.h" />
     <ClInclude Include="physical_device.h" />
+    <ClInclude Include="utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
