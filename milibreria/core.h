@@ -47,6 +47,7 @@ namespace core {
 		VkDevice& GetDevice() { return m_device; }
 		std::vector<VkFramebuffer> CreateFrameBuffers(VkRenderPass RenderPass);
 		BufferMemory CreateVertexBuffer(const void* pVertices, size_t Size);
+		BufferMemory CreateIndexBuffer(const void* pIndices, size_t Size);
 		//BufferMemory CreateSimpleVertexBuffer(const void* pVertices, size_t Size);
 		std::vector<BufferMemory> CreateUniformBuffers(size_t Size);
 		void CreateTexture(const char* filename, VulkanTexture& Tex);

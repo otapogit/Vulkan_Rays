@@ -537,6 +537,41 @@ namespace core {
 		return VB;
 	}
 
+	BufferMemory VulkanCore::CreateIndexBuffer(const void* pIndices, size_t Size) {
+		// Step 1: create a staging buffer
+		VkBufferUsageFlags Usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+		VkMemoryPropertyFlags MemProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+		BufferMemory StagingIB = CreateBuffer(Size, Usage, MemProps);
+
+		// Step 2: map the memory of the staging buffer
+		void* pMem = NULL;
+		VkDeviceSize Offset = 0;
+		VkMemoryMapFlags Flags = 0;
+		VkResult res = vkMapMemory(m_device, StagingIB.m_mem, Offset,
+			StagingIB.m_allocationSize, Flags, &pMem);
+		CHECK_VK_RESULT(res, "vkMapMemory\n");
+
+		// Step 3: copy the indices to the staging buffer
+		memcpy(pMem, pIndices, Size);
+
+		// Step 4: unmap/release the mapped memory
+		vkUnmapMemory(m_device, StagingIB.m_mem);
+
+		// Step 5: create the final index buffer
+		Usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		MemProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+		BufferMemory IB = CreateBuffer(Size, Usage, MemProps);
+
+		// Step 6: copy the staging buffer to the final buffer
+		CopyBufferToBuffer(IB.m_buffer, StagingIB.m_buffer, Size);
+
+		// Step 7: release the resources of the staging buffer
+		StagingIB.Destroy(m_device);
+
+		return IB;
+	}
+
 	BufferMemory VulkanCore::CreateBuffer(VkDeviceSize Size, VkBufferUsageFlags Usage, VkMemoryPropertyFlags Properties) {
 		VkBufferCreateInfo vbCreateInfo = {};
 		vbCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -723,10 +758,14 @@ namespace core {
 
 	void VulkanTexture::Destroy(VkDevice Device)
 	{
-		vkDestroySampler(Device, m_sampler, NULL);
-		vkDestroyImageView(Device, m_view, NULL);
-		vkDestroyImage(Device, m_image, NULL);
-		vkFreeMemory(Device, m_mem, NULL);
+		if(m_sampler)
+			vkDestroySampler(Device, m_sampler, NULL);
+		if(m_view)
+			vkDestroyImageView(Device, m_view, NULL);
+		if(m_image)
+			vkDestroyImage(Device, m_image, NULL);
+		if(m_mem)
+			vkFreeMemory(Device, m_mem, NULL);
 	}
 
 	void VulkanCore::CreateTextureImageFromData(VulkanTexture& Tex, const void* pPixels,

@@ -19,5 +19,6 @@ namespace core {
 	const char* Get_DebugSeverityString(VkDebugUtilsMessageTypeFlagBitsEXT severity);
 	const char* Get_DebugType(VkDebugUtilsMessageTypeFlagsEXT severity);
 	int GetBytesPerTexFormat(VkFormat Format);
+	VkDeviceAddress GetBufferDeviceAddress(VkDevice device, VkBuffer buffer);
 
 }

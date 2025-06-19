@@ -14,6 +14,7 @@ namespace core{
 
 		void Bind(VkCommandBuffer CmdBuf, int ImageIndex);
 		void DrawMesh(VkCommandBuffer CmdBuf, const SimpleMesh& mesh);
+		void DrawMeshIndexed(VkCommandBuffer CmdBuf, const SimpleMesh& mesh);
 		void UpdateTexture(core::VulkanTexture* texture);
 	private:
 		void CreateDescriptorSets(int NumImages, std::vector<BufferMemory>& UniformBuffers, int UniformDataSize,core::VulkanTexture* texture = nullptr);

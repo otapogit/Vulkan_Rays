@@ -4,6 +4,7 @@
 #include <core_simple_mesh.h>
 #include <core_glfw.h>
 #include <core_rt.h>
+#include <core_vertex.h>
 #include <iostream>
 
 #include <glm/ext.hpp>
@@ -68,7 +69,7 @@ public:
 
 		//Raytracer
 		m_raytracer.initRayTracing(m_vkcore.GetSelectedPhysicalDevice());
-
+		m_raytracer.setup(m_device);
 
 		CreateCommandBuffers();
 		RecordCommandBuffers();
@@ -190,16 +191,16 @@ private:
 			glm::vec2 Tex;
 		};
 		float size = 5.0f; // Radio desde el centro
-		std::vector<Vertex> vertices = {
+		std::vector<core::VertexObj> vertices = {
 			// Primer triángulo
-			Vertex({-size, -4.0f, -size}, {0.0f, 0.0f}), // Esquina inferior-izquierda
-			Vertex({ size, -4.0f, -size}, {1.0f, 0.0f}), // Esquina inferior-derecha  
-			Vertex({ size, -4.0f,  size}, {1.0f, 1.0f}), // Esquina superior-derecha
+			core::VertexObj({-size, -4.0f, -size}, {0.0f, 0.0f}), // Esquina inferior-izquierda
+			core::VertexObj({ size, -4.0f, -size}, {1.0f, 0.0f}), // Esquina inferior-derecha  
+			core::VertexObj({ size, -4.0f,  size}, {1.0f, 1.0f}), // Esquina superior-derecha
 
 			// Segundo triángulo
-			Vertex({-size, -4.0f, -size}, {0.0f, 0.0f}), // Esquina inferior-izquierda
-			Vertex({ size, -4.0f,  size}, {1.0f, 1.0f}), // Esquina superior-derecha
-			Vertex({-size, -4.0f,  size}, {0.0f, 1.0f})  // Esquina superior-izquierda
+			core::VertexObj({-size, -4.0f, -size}, {0.0f, 0.0f}), // Esquina inferior-izquierda
+			core::VertexObj({ size, -4.0f,  size}, {1.0f, 1.0f}), // Esquina superior-derecha
+			core::VertexObj({-size, -4.0f,  size}, {0.0f, 1.0f})  // Esquina superior-izquierda
 		};
 
 		m_mesh1.m_vertexBufferSize = sizeof(vertices[0]) * vertices.size();

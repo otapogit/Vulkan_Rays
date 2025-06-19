@@ -192,6 +192,15 @@ namespace core {
 		vkCmdDraw(CmdBuf, mesh.vertexcount, 1, 0, 0);
 	}
 
+	void GraphicsPipeline::DrawMeshIndexed(VkCommandBuffer CmdBuf, const SimpleMesh& mesh) {
+		VkBuffer vertexBuffers[] = { mesh.m_vb.m_buffer };
+		VkDeviceSize offsets[] = { 0 };
+
+		vkCmdBindVertexBuffers(CmdBuf, 0, 1, vertexBuffers, offsets);
+		vkCmdBindIndexBuffer(CmdBuf, mesh.m_indexbuffer.m_buffer, 0,mesh.m_indexType);
+		vkCmdDrawIndexed(CmdBuf, mesh.m_indexBufferSize, 1, 0, 0,0);
+	}
+
 	void GraphicsPipeline::CreateDescriptorSets(int NumImages, std::vector<BufferMemory>& UniformBuffers, int UniformDataSize, core::VulkanTexture* textur) {
 		CreateDescriptorPool(NumImages);
 		CreateDescriptorSetLayout(UniformBuffers, UniformDataSize);

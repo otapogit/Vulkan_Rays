@@ -105,7 +105,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(Vulkan_SDK)/Include;%(AdditionalIncludeDirectories);C:\Users\carlos\source\repos\glfw\include;C:\Cositas\Universi\TFM\glslang\include;C:\Cositas\Universi\TFM\Vulkan_Project\glm\glm</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(Vulkan_SDK)/Include;%(AdditionalIncludeDirectories);C:\Users\carlos\source\repos\glfw\include;C:\Cositas\Universi\TFM\glslang\include;C:\Cositas\Universi\TFM\Vulkan_Project\glm\glm;C:\Users\carlos\source\repos\glm</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -156,6 +156,7 @@
     <ClInclude Include="core_shader.h" />
     <ClInclude Include="core_simple_mesh.h" />
     <ClInclude Include="core_utils.h" />
+    <ClInclude Include="core_vertex.h" />
     <ClInclude Include="core_wrapper.h" />
     <ClInclude Include="physical_device.h" />
     <ClInclude Include="utils.h" />
