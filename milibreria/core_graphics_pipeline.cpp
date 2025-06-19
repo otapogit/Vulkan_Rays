@@ -147,7 +147,7 @@ namespace core {
 		PipelineInfo.pViewportState = &VPCreateInfo;
 		PipelineInfo.pRasterizationState = &RastCreateInfo;
 		PipelineInfo.pMultisampleState = &PipelineMSCreateInfo;
-		//PipelineInfo.pDepthStencilState = 
+		PipelineInfo.pDepthStencilState = &DepthStencilState;
 		PipelineInfo.pColorBlendState = &BlendCreateInfo;
 		PipelineInfo.layout = m_pipelineLayout;
 		PipelineInfo.renderPass = RenderPass;
