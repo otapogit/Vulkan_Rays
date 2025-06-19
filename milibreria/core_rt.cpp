@@ -6,12 +6,17 @@ namespace core {
 	// Initialize Vulkan ray tracing
 	// #VKRay
 
-	Raytracer::Raytracer() {
-	}
+	Raytracer::Raytracer() {}
+
 	Raytracer::~Raytracer(){}
 
-	void Raytracer::setup(VkDevice dev) {
+	/*
+	* Metodo para pasar todos los componentes necesarios del core aqui
+	* Quiero mantener encapsulado de cierta manera el raytracing
+	*/
+	void Raytracer::setup(VkDevice dev, VkCommandPool pool) {
 		m_device = dev;
+		m_cmdBufPool = pool;
 	}
 
 	void Raytracer::initRayTracing(core::PhysicalDevice physdev)
@@ -79,5 +84,45 @@ namespace core {
 			allBlas.emplace_back(blas);
 		}
 		//m_rtBuilder.buildBlas(allBlas, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
+	}
+
+	void Raytracer::buildBlas(const std::vector<core::BlasInput>& input, VkBuildAccelerationStructureFlagsKHR flags) {
+		uint32_t     nbBlas = static_cast<uint32_t>(input.size());
+		VkDeviceSize asTotalSize{ 0 };     // Memory size of all allocated BLAS
+		//uint32_t     nbCompactions{ 0 };   // Nb of BLAS requesting compaction
+		VkDeviceSize maxScratchSize{ 0 };  // Largest scratch size
+
+		// Preparing the information for the acceleration build commands.
+		std::vector<core::AccelerationStructureBuildData> buildAs(nbBlas);
+		for (uint32_t idx = 0; idx < nbBlas; idx++)
+		{
+			buildAs[idx].asType = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+			buildAs[idx].asGeometry = input[idx].asGeometry;
+			buildAs[idx].rangeInfo = input[idx].asBuildOffsetInfo;
+
+			auto sizeInfo = buildAs[idx].finalizeGeometry(m_device, input[idx].flags | flags);
+			maxScratchSize = std::max(maxScratchSize, sizeInfo.buildScratchSize);
+		}
+		VkDeviceSize hintMaxBudget{ 256'000'000 };  // 256 MB
+		
+		// Allocate the scratch buffers holding the temporary data of the acceleration structure builder
+		BufferMemory blasScratchBuffer;
+
+		bool hasCompaction = hasFlag(flags, VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR);
+		/*
+		nvvk::BlasBuilder blasBuilder(m_alloc, m_device);
+
+		uint32_t minAlignment = 128; /*m_rtASProperties.minAccelerationStructureScratchOffsetAlignment*/
+		// 1) finding the largest scratch size
+		/*
+		VkDeviceSize scratchSize = blasBuilder.getScratchSize(hintMaxBudget, blasBuildData, minAlignment);
+		// 2) allocating the scratch buffer
+		blasScratchBuffer =
+			m_alloc->createBuffer(scratchSize, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+		// 3) getting the device address for the scratch buffer
+		std::vector<VkDeviceAddress> scratchAddresses;
+		blasBuilder.getScratchAddresses(hintMaxBudget, blasBuildData, blasScratchBuffer.address, scratchAddresses, minAlignment);
+		*/
+
 	}
 }

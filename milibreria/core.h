@@ -45,6 +45,7 @@ namespace core {
 		VulkanQueue* GetQueue() { return &m_queue; }
 		VkRenderPass CreateSimpleRenderPass();
 		VkDevice& GetDevice() { return m_device; }
+		VkCommandPool GetCommandPool() { return m_cmdBufPool; }
 		std::vector<VkFramebuffer> CreateFrameBuffers(VkRenderPass RenderPass);
 		BufferMemory CreateVertexBuffer(const void* pVertices, size_t Size);
 		BufferMemory CreateIndexBuffer(const void* pIndices, size_t Size);

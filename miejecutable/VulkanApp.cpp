@@ -72,7 +72,7 @@ public:
 
 		//Raytracer
 		m_raytracer.initRayTracing(m_vkcore.GetSelectedPhysicalDevice());
-		m_raytracer.setup(m_device);
+		m_raytracer.setup(m_device, m_vkcore.GetCommandPool());
 
 		CreateCommandBuffers();
 		RecordCommandBuffers();
@@ -144,10 +144,10 @@ private:
 
 	void LoadTexture() {
 		m_mesh.m_pTex = new core::VulkanTexture;
-		m_vkcore.CreateTexture("hqdefault.jpg", *(m_mesh.m_pTex));
+		m_vkcore.CreateTexture("Textures/carlos.jpg", *(m_mesh.m_pTex));
 		//Cuidado al copiar pointers xq dara error al borrarlos
 		m_mesh1.m_pTex = new core::VulkanTexture;
-		m_vkcore.CreateTexture("hqdefault.jpg", *(m_mesh1.m_pTex));
+		m_vkcore.CreateTexture("Textures/hqdefault.jpg", *(m_mesh1.m_pTex));
 	}
 
 
