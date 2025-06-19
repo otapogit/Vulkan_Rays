@@ -758,7 +758,8 @@ namespace core {
 
 	void VulkanTexture::Destroy(VkDevice Device)
 	{
-		if(m_sampler)
+		if (m_sampler)
+			printf("\nDestroying sampler\n");
 			vkDestroySampler(Device, m_sampler, NULL);
 		if(m_view)
 			vkDestroyImageView(Device, m_view, NULL);

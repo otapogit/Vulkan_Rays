@@ -147,7 +147,7 @@ namespace core {
 		PipelineInfo.pViewportState = &VPCreateInfo;
 		PipelineInfo.pRasterizationState = &RastCreateInfo;
 		PipelineInfo.pMultisampleState = &PipelineMSCreateInfo;
-
+		//PipelineInfo.pDepthStencilState = 
 		PipelineInfo.pColorBlendState = &BlendCreateInfo;
 		PipelineInfo.layout = m_pipelineLayout;
 		PipelineInfo.renderPass = RenderPass;
@@ -198,7 +198,8 @@ namespace core {
 
 		vkCmdBindVertexBuffers(CmdBuf, 0, 1, vertexBuffers, offsets);
 		vkCmdBindIndexBuffer(CmdBuf, mesh.m_indexbuffer.m_buffer, 0,mesh.m_indexType);
-		vkCmdDrawIndexed(CmdBuf, mesh.m_indexBufferSize, 1, 0, 0,0);
+		//Si hay indices poner vertexcount al numero de indices
+		vkCmdDrawIndexed(CmdBuf, mesh.vertexcount, 1, 0, 0,0);
 	}
 
 	void GraphicsPipeline::CreateDescriptorSets(int NumImages, std::vector<BufferMemory>& UniformBuffers, int UniformDataSize, core::VulkanTexture* textur) {

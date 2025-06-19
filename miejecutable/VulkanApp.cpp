@@ -29,6 +29,9 @@ public:
 	}
 
 	~VulkanApp() {
+		m_texture1.Destroy(m_device);
+		m_texture2.Destroy(m_device);
+
 		m_vkcore.FreeCommandBuffers((uint32_t)m_cmdBufs.size(), m_cmdBufs.data());
 
 		vkDestroyShaderModule(m_vkcore.GetDevice(), m_vs, NULL);
@@ -142,7 +145,9 @@ private:
 	void LoadTexture() {
 		m_mesh.m_pTex = new core::VulkanTexture;
 		m_vkcore.CreateTexture("hqdefault.jpg", *(m_mesh.m_pTex));
-		m_mesh1.m_pTex = m_mesh.m_pTex;
+		//Cuidado al copiar pointers xq dara error al borrarlos
+		m_mesh1.m_pTex = new core::VulkanTexture;
+		m_vkcore.CreateTexture("hqdefault.jpg", *(m_mesh1.m_pTex));
 	}
 
 
@@ -167,18 +172,31 @@ private:
 			glm::vec2 Tex;
 		};
 
+		// Vértices únicos (eliminamos duplicados)
 		std::vector<Vertex> vertices = {
-			Vertex({-1.0f,-1.0f,0.0f},{0.0f,0.0f}),
-			Vertex({1.0f,-1.0f,0.0f},{0.0f,1.0f}),
-			Vertex({0.0f,0.0f,0.0f},{1.0f,1.0f}),
-			Vertex({1.0f,1.0f,0.0f},{0.0f,0.0f}),
-			Vertex({-1.0f,1.0f,0.0f},{0.0f,1.0f}),
-			Vertex({0.0f,0.0f,0.0f},{1.0f,1.0f}),
+			Vertex({-1.0f, -1.0f, 0.0f}, {0.0f, 0.0f}), // 0
+			Vertex({ 1.0f, -1.0f, 0.0f}, {0.0f, 1.0f}), // 1
+			Vertex({ 0.0f,  0.0f, 0.0f}, {1.0f, 1.0f}), // 2
+			Vertex({ 1.0f,  1.0f, 0.0f}, {0.0f, 0.0f}), // 3
+			Vertex({-1.0f,  1.0f, 0.0f}, {0.0f, 1.0f})  // 4
 		};
 
+		// Índices para formar los triángulos
+		std::vector<uint32_t> indices = {
+			0, 1, 2,  // Primer triángulo
+			3, 4, 2,   // Segundo triángulo
+		};
+
+		// Crear vertex buffer
 		m_mesh.m_vertexBufferSize = sizeof(vertices[0]) * vertices.size();
 		m_mesh.m_vb = m_vkcore.CreateVertexBuffer(vertices.data(), m_mesh.m_vertexBufferSize);
-		m_mesh.vertexcount = vertices.size();
+
+		// Crear index buffer
+		m_mesh.m_indexBufferSize = sizeof(indices[0]) * indices.size();
+		m_mesh.m_indexbuffer = m_vkcore.CreateIndexBuffer(indices.data(), m_mesh.m_indexBufferSize);
+		m_mesh.m_indexType = VK_INDEX_TYPE_UINT32;
+
+		m_mesh.vertexcount = indices.size(); // Número de índices, no vértices
 	}
 
 	void CreateVertexBuffer2() {
@@ -190,22 +208,35 @@ private:
 			glm::vec3 Pos;
 			glm::vec2 Tex;
 		};
-		float size = 5.0f; // Radio desde el centro
-		std::vector<core::VertexObj> vertices = {
-			// Primer triángulo
-			core::VertexObj({-size, -4.0f, -size}, {0.0f, 0.0f}), // Esquina inferior-izquierda
-			core::VertexObj({ size, -4.0f, -size}, {1.0f, 0.0f}), // Esquina inferior-derecha  
-			core::VertexObj({ size, -4.0f,  size}, {1.0f, 1.0f}), // Esquina superior-derecha
 
-			// Segundo triángulo
-			core::VertexObj({-size, -4.0f, -size}, {0.0f, 0.0f}), // Esquina inferior-izquierda
-			core::VertexObj({ size, -4.0f,  size}, {1.0f, 1.0f}), // Esquina superior-derecha
-			core::VertexObj({-size, -4.0f,  size}, {0.0f, 1.0f})  // Esquina superior-izquierda
+		float size = 5.0f; // Radio desde el centro
+
+		// Vértices únicos para un cuadrado
+		std::vector<core::VertexObj> vertices = {
+			core::VertexObj({-size, -4.0f, -size}, {0.0f, 0.0f}), // 0: Esquina inferior-izquierda
+			core::VertexObj({ size, -4.0f, -size}, {1.0f, 0.0f}), // 1: Esquina inferior-derecha  
+			core::VertexObj({ size, -4.0f,  size}, {1.0f, 1.0f}), // 2: Esquina superior-derecha
+			core::VertexObj({-size, -4.0f,  size}, {0.0f, 1.0f})  // 3: Esquina superior-izquierda
 		};
 
+		// Índices para formar dos triángulos que crean un cuadrado
+		std::vector<uint32_t> indices = {
+			0, 1, 2,  // Primer triángulo: inferior-izq, inferior-der, superior-der
+			0, 2, 3   // Segundo triángulo: inferior-izq, superior-der, superior-izq
+
+		};
+		//Parece que el error se ha solucionado solo
+
+		// Crear vertex buffer
 		m_mesh1.m_vertexBufferSize = sizeof(vertices[0]) * vertices.size();
 		m_mesh1.m_vb = m_vkcore.CreateVertexBuffer(vertices.data(), m_mesh1.m_vertexBufferSize);
-		m_mesh1.vertexcount = vertices.size();
+
+		// Crear index buffer
+		m_mesh1.m_indexBufferSize = sizeof(indices[0]) * indices.size();
+		m_mesh1.m_indexbuffer = m_vkcore.CreateIndexBuffer(indices.data(), m_mesh1.m_indexBufferSize);
+		m_mesh1.m_indexType = VK_INDEX_TYPE_UINT32;
+
+		m_mesh1.vertexcount = indices.size(); // Número de índices, no vértices
 	}
 
 	void UpdateUniformBuffers(uint32_t ImageIndex) {
@@ -281,8 +312,8 @@ private:
 
 			m_pipeline->Bind(m_cmdBufs[i],(int)i);
 
-			m_pipeline->DrawMesh(m_cmdBufs[i], m_mesh);
-			m_pipeline->DrawMesh(m_cmdBufs[i], m_mesh1);
+			m_pipeline->DrawMeshIndexed(m_cmdBufs[i], m_mesh);
+			m_pipeline->DrawMeshIndexed(m_cmdBufs[i], m_mesh1);
 
 			vkCmdEndRenderPass(m_cmdBufs[i]);
 
