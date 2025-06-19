@@ -138,6 +138,7 @@
     <ClCompile Include="core_glfw.cpp" />
     <ClCompile Include="core_graphics_pipeline.cpp" />
     <ClCompile Include="core_queue.cpp" />
+    <ClCompile Include="core_rt.cpp" />
     <ClCompile Include="core_shader.cpp" />
     <ClCompile Include="core_wrapper.cpp" />
     <ClCompile Include="physical_device.cpp" />
@@ -151,6 +152,7 @@
     <ClInclude Include="core_glfw.h" />
     <ClInclude Include="core_graphics_pipeline.h" />
     <ClInclude Include="core_queue.h" />
+    <ClInclude Include="core_rt.h" />
     <ClInclude Include="core_shader.h" />
     <ClInclude Include="core_simple_mesh.h" />
     <ClInclude Include="core_utils.h" />

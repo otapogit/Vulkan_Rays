@@ -148,7 +148,8 @@ namespace core {
 #if defined(__linux__)
 			"VK_KHR_xcb_surface"
 #endif
-			VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
+			VK_EXT_DEBUG_UTILS_EXTENSION_NAME
+
 		};
 
 
@@ -197,7 +198,10 @@ namespace core {
 
 		std::vector<const char*> DevExts = {
 			VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-			VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME
+			VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
+			VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+			VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
+			VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME
 		};
 		VkPhysicalDeviceFeatures DeviceFeatures = { 0 };
 		if (m_physDevices.Selected().m_features.geometryShader == VK_FALSE) {
@@ -219,7 +223,7 @@ namespace core {
 		DeviceCreateInfo.ppEnabledLayerNames = NULL;
 		DeviceCreateInfo.enabledExtensionCount = (uint32_t)DevExts.size();
 		DeviceCreateInfo.ppEnabledExtensionNames = DevExts.data();
-		DeviceCreateInfo.pEnabledFeatures = NULL;
+		DeviceCreateInfo.pEnabledFeatures = &DeviceFeatures;
 
 		VkResult res = vkCreateDevice(m_physDevices.Selected().m_physDevice, &DeviceCreateInfo, NULL, &m_device);
 		CHECK_VK_RESULT(res, "Create device\n");
@@ -235,6 +239,10 @@ namespace core {
 		printf("GLFW window surface created\n");
 
 
+	}
+
+	core::PhysicalDevice VulkanCore::GetSelectedPhysicalDevice() {
+		return m_physDevices.Selected();
 	}
 
 	/*
@@ -403,11 +411,11 @@ namespace core {
 		AttachDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		AttachDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		AttachDesc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		AttachDesc.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		AttachDesc.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 		VkAttachmentReference AttachRef = {};
 		AttachRef.attachment = 0;
-		AttachRef.layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		AttachRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 		VkFormat DepthFormat = m_physDevices.Selected().m_depthFormat;
 

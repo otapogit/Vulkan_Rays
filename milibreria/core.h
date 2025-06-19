@@ -41,6 +41,7 @@ namespace core {
 		void FreeCommandBuffers(uint32_t count, const VkCommandBuffer* pCmdBufs);
 		int GetNumImages() const { return (int)m_images.size(); }
 		const VkImage& GetImage(int Index) const;
+		core::PhysicalDevice GetSelectedPhysicalDevice();
 		VulkanQueue* GetQueue() { return &m_queue; }
 		VkRenderPass CreateSimpleRenderPass();
 		VkDevice& GetDevice() { return m_device; }

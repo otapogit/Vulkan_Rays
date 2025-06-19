@@ -3,6 +3,7 @@
 #include <core_graphics_pipeline.h>
 #include <core_simple_mesh.h>
 #include <core_glfw.h>
+#include <core_rt.h>
 #include <iostream>
 
 #include <glm/ext.hpp>
@@ -63,8 +64,11 @@ public:
 		CreateUniformBuffers();
 
 		CreatePipeline();
-
 		CreateCamera();
+
+		//Raytracer
+		m_raytracer.initRayTracing(m_vkcore.GetSelectedPhysicalDevice());
+
 
 		CreateCommandBuffers();
 		RecordCommandBuffers();
@@ -326,4 +330,9 @@ private:
 	CameraFirstPerson* m_pCamera = NULL;
 
 	std::vector<core::BufferMemory> m_uniformBuffers;
+
+
+
+	///RAYTRACING
+	core::Raytracer m_raytracer;
 };
