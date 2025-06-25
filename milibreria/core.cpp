@@ -1,11 +1,10 @@
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
-#include <vulkan/vulkan_core.h>
-#include <GLFW/glfw3.h>
+
 #include <vector>
 #include "core.h"
-#include "utils.h"
+
 #include <cassert>
 
 
@@ -20,6 +19,7 @@ namespace core {
 	VulkanCore::~VulkanCore() {
 
 		printf("\n---------------------------------------\n\n");
+
 
 		vkFreeCommandBuffers(m_device, m_cmdBufPool, 1, &m_copyCmdBuf);
 
@@ -201,8 +201,16 @@ namespace core {
 			VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
 			VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
 			VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
-			VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME
+			VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
+			VK_KHR_SPIRV_1_4_EXTENSION_NAME,                 // Requerida por ray tracing
+			VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME,     // Requerida por SPIRV 1.4
+			VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,       // Requerida por ray tracing
+			VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,     // Requerida por acceleration structure
+			VK_KHR_RAY_QUERY_EXTENSION_NAME
 		};
+
+
+
 		VkPhysicalDeviceFeatures DeviceFeatures = { 0 };
 		if (m_physDevices.Selected().m_features.geometryShader == VK_FALSE) {
 			fprintf(stderr, "Geometry shader not supported");
@@ -213,9 +221,18 @@ namespace core {
 		DeviceFeatures.geometryShader = VK_TRUE;
 		DeviceFeatures.tessellationShader = VK_TRUE;
 
+		VkPhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddressFeatures = {};
+		bufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+		bufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
+
+		VkPhysicalDeviceRayTracingPipelineFeaturesKHR rtPipelineFeatures = {};
+		rtPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+		rtPipelineFeatures.rayTracingPipeline = VK_TRUE;
+		rtPipelineFeatures.pNext = &bufferDeviceAddressFeatures;
+
 		VkDeviceCreateInfo DeviceCreateInfo = {};
 		DeviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-		DeviceCreateInfo.pNext = NULL;
+		DeviceCreateInfo.pNext = &rtPipelineFeatures;
 		DeviceCreateInfo.flags = 0;
 		DeviceCreateInfo.queueCreateInfoCount = 1;
 		DeviceCreateInfo.pQueueCreateInfos = &qInfo;
@@ -524,7 +541,7 @@ namespace core {
 		vkUnmapMemory(m_device, StagingVB.m_mem);
 
 		// Step 5: create the final buffer
-		Usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		Usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 		MemProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 		BufferMemory VB = CreateBuffer(Size, Usage, MemProps);
 
@@ -559,7 +576,7 @@ namespace core {
 		vkUnmapMemory(m_device, StagingIB.m_mem);
 
 		// Step 5: create the final index buffer
-		Usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		Usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 		MemProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 		BufferMemory IB = CreateBuffer(Size, Usage, MemProps);
 
@@ -570,6 +587,10 @@ namespace core {
 		StagingIB.Destroy(m_device);
 
 		return IB;
+	}
+
+	BufferMemory VulkanCore::CreateBufferBlas(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags flags) {
+		return CreateBuffer(size, usage, flags);
 	}
 
 	BufferMemory VulkanCore::CreateBuffer(VkDeviceSize Size, VkBufferUsageFlags Usage, VkMemoryPropertyFlags Properties) {

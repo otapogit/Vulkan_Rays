@@ -29,6 +29,9 @@ public:
 	}
 
 	~VulkanApp() {
+
+		m_raytracer.cleanup();
+
 		m_texture1.Destroy(m_device);
 		m_texture2.Destroy(m_device);
 
@@ -70,9 +73,14 @@ public:
 		CreatePipeline();
 		CreateCamera();
 
+		std::vector<core::SimpleMesh> meshes = { m_mesh,m_mesh1 };
+
 		//Raytracer
-		m_raytracer.initRayTracing(m_vkcore.GetSelectedPhysicalDevice());
-		m_raytracer.setup(m_device, m_vkcore.GetCommandPool());
+		m_raytracer.initRayTracing(m_vkcore.GetSelectedPhysicalDevice(), &m_device);
+		m_raytracer.setup(m_vkcore.GetCommandPool(), &m_vkcore);
+
+		//da error
+		m_raytracer.createBottomLevelAS(meshes);
 
 		CreateCommandBuffers();
 		RecordCommandBuffers();
@@ -330,6 +338,7 @@ private:
 		float znear = 0.1f;
 		float zfar = 1000.0f;
 		CreateCamera(FOV, znear, zfar);
+		printf("Created camera");
 	}
 
 	void CreateCamera(float FOV, float znear, float zfar) {

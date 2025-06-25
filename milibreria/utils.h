@@ -20,5 +20,5 @@ namespace core {
 	const char* Get_DebugType(VkDebugUtilsMessageTypeFlagsEXT severity);
 	int GetBytesPerTexFormat(VkFormat Format);
 	VkDeviceAddress GetBufferDeviceAddress(VkDevice device, VkBuffer buffer);
-	bool hasFlag(VkFlags item, VkFlags flag) { return (item & flag) == flag; }
+	static bool hasFlag(VkFlags item, VkFlags flag) { return (item & flag) == flag; }
 }

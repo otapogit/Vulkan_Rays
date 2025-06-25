@@ -101,6 +101,8 @@ namespace core {
 
 		VkBufferDeviceAddressInfo info = { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
 		info.buffer = buffer;
+		info.pNext = NULL;
+
 		return vkGetBufferDeviceAddress(device, &info);
 	}
 }

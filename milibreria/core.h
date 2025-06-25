@@ -5,6 +5,7 @@
 #include "physical_device.h"
 #include "core_wrapper.h"
 #include "core_queue.h"
+#include "utils.h"
 
 #include "3rdParty/stb_image.h"
 namespace core {
@@ -52,6 +53,7 @@ namespace core {
 		//BufferMemory CreateSimpleVertexBuffer(const void* pVertices, size_t Size);
 		std::vector<BufferMemory> CreateUniformBuffers(size_t Size);
 		void CreateTexture(const char* filename, VulkanTexture& Tex);
+		BufferMemory CreateBufferBlas(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags flags);
 
 	private:
 		void CreateInstance(const char* pAppName);

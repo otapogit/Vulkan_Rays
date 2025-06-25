@@ -8,7 +8,7 @@
 #include "core.h"
 #include "core_simple_mesh.h"
 #include "core_vertex.h"
-#include "utils.h"
+
 #include <cassert>
 
 namespace core {
@@ -35,37 +35,17 @@ namespace core {
 		VkAccelerationStructureBuildSizesInfoKHR sizeInfo{ VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR };
 
 		// Adds a geometry with its build range information to the acceleration structure.
-		void addGeometry(const VkAccelerationStructureGeometryKHR& asGeom, const VkAccelerationStructureBuildRangeInfoKHR& offset);
-		void addGeometry(const AccelerationStructureGeometryInfo& asGeom);
+		//void addGeometry(const VkAccelerationStructureGeometryKHR& asGeom, const VkAccelerationStructureBuildRangeInfoKHR& offset);
+		//void addGeometry(const AccelerationStructureGeometryInfo& asGeom);
 		// Configures the build information and calculates the necessary size information.
-		VkAccelerationStructureBuildSizesInfoKHR finalizeGeometry(VkDevice device, VkBuildAccelerationStructureFlagsKHR flags)
-		{
-			assert(asGeometry.size() > 0 && "No geometry added to Build Structure");
-			assert(asType != VK_ACCELERATION_STRUCTURE_TYPE_MAX_ENUM_KHR && "Acceleration Structure Type not set");
-
-			buildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
-			buildInfo.type = asType;
-			buildInfo.flags = flags;
-			buildInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
-			buildInfo.srcAccelerationStructure = VK_NULL_HANDLE;
-			buildInfo.dstAccelerationStructure = VK_NULL_HANDLE;
-			buildInfo.geometryCount = static_cast<uint32_t>(asGeometry.size());
-			buildInfo.pGeometries = asGeometry.data();
-			buildInfo.ppGeometries = nullptr;
-			buildInfo.scratchData.deviceAddress = 0;
-
-			std::vector<uint32_t> maxPrimCount(rangeInfo.size());
-			for (size_t i = 0; i < rangeInfo.size(); ++i)
-			{
-				maxPrimCount[i] = rangeInfo[i].primitiveCount;
-			}
-
-			vkGetAccelerationStructureBuildSizesKHR(device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildInfo,
-				maxPrimCount.data(), &sizeInfo);
-
-			return sizeInfo;
-		}
+		VkAccelerationStructureBuildSizesInfoKHR finalizeGeometry(VkDevice device, VkBuildAccelerationStructureFlagsKHR flags, PFN_vkGetAccelerationStructureBuildSizesKHR pfnGetBuildSizes);
 	};
+	struct AccelerationStructure {
+		VkAccelerationStructureKHR handle = VK_NULL_HANDLE;
+		core::BufferMemory buffer;
+		VkDeviceAddress address = 0;
+	};
+
 	// Single Geometry information, multiple can be used in a single BLAS
 	struct AccelerationStructureGeometryInfo
 	{
@@ -77,15 +57,47 @@ namespace core {
 		Raytracer();
 		~Raytracer();
 		// #VKRay
-		void initRayTracing(core::PhysicalDevice physdev);
-		void setup(VkDevice dev, VkCommandPool pool);
+		void initRayTracing(core::PhysicalDevice physdev, VkDevice* dev);
+		void setup( VkCommandPool pool, core::VulkanCore* core);
 		void createBottomLevelAS(std::vector<core::SimpleMesh> meshes);
+		void createTopLevelAS();
+
+
+
+		// Método helper para limpiar recursos
+		void cleanup() {
+			for (auto& blas : m_blas) {
+				if (blas.handle != VK_NULL_HANDLE) {
+					vkDestroyAccelerationStructureKHR(m_device[0], blas.handle, nullptr);
+				}
+				//implementar destroybuffer o simplemente
+				vkDestroyBuffer(m_device[0], blas.buffer.m_buffer, NULL);
+			}
+			m_blas.clear();
+		}
+	private:
+
+		void loadRayTracingFunctions();
 		auto objectToVkGeometryKHR(const core::SimpleMesh& model);
-		void buildBlas(const std::vector<core::BlasInput>& input, VkBuildAccelerationStructureFlagsKHR flags);
+		void buildBlas(std::vector<core::BlasInput>& input, VkBuildAccelerationStructureFlagsKHR flags);
 		VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_rtProperties{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR };
 		core::PhysicalDevice m_physicaldevice;
-		VkDevice m_device;
+		VkDevice* m_device;
 		VkCommandPool m_cmdBufPool;
+		// Nuevos miembros para almacenar las BLAS creadas
+		std::vector<AccelerationStructure> m_blas;
+		VulkanCore* m_vkcore;
+
+		// Ray tracing function pointers
+		PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR;
+		PFN_vkDestroyAccelerationStructureKHR vkDestroyAccelerationStructureKHR;
+		PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizesKHR;
+		PFN_vkGetAccelerationStructureDeviceAddressKHR vkGetAccelerationStructureDeviceAddressKHR;
+		PFN_vkCmdBuildAccelerationStructuresKHR vkCmdBuildAccelerationStructuresKHR;
+		PFN_vkBuildAccelerationStructuresKHR vkBuildAccelerationStructuresKHR;
+		PFN_vkCmdTraceRaysKHR vkCmdTraceRaysKHR;
+		PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR;
+		PFN_vkCreateRayTracingPipelinesKHR vkCreateRayTracingPipelinesKHR;
 	};
 
 
