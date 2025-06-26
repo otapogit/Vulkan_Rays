@@ -1,5 +1,7 @@
 #include "core_rt.h"
 #include "utils.h"
+#include "core_shader.h"
+#include <array>
 
 namespace core {
 	//--------------------------------------------------------------------------------------------------
@@ -596,5 +598,218 @@ namespace core {
     void Raytracer::createOutImage(int windowwidth, int windowheight) {
         VkFormat Format = VK_FORMAT_R8G8B8A8_UNORM;
         m_vkcore->CreateTextureImage(*m_outTexture, (uint32_t)windowwidth, (uint32_t)windowheight, Format);
+    }
+
+    void Raytracer::createRtPipeline() {
+        // 1. Cargar shaders
+        enum StageIndices {
+            eRaygen,
+            eMiss,
+            eClosestHit,
+            eShaderGroupCount
+        };
+
+        std::array<VkPipelineShaderStageCreateInfo, eShaderGroupCount> stages;
+
+        //A lo mejor es interesante pasar los shaders desde el ejecutable
+
+        // Raygen shader
+        VkShaderModule raygenModule = core::CreateShaderModuleFromText(*m_device,"xd");
+        stages[eRaygen].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        stages[eRaygen].stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+        stages[eRaygen].module = raygenModule;
+        stages[eRaygen].pName = "main";
+
+        // Miss shader
+        VkShaderModule missModule = core::CreateShaderModuleFromText(*m_device,"xd");
+        stages[eMiss].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        stages[eMiss].stage = VK_SHADER_STAGE_MISS_BIT_KHR;
+        stages[eMiss].module = missModule;
+        stages[eMiss].pName = "main";
+
+        // Closest hit shader
+        VkShaderModule chitModule = core::CreateShaderModuleFromText(*m_device,"xd");
+        stages[eClosestHit].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        stages[eClosestHit].stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+        stages[eClosestHit].module = chitModule;
+        stages[eClosestHit].pName = "main";
+
+        // 2. Crear shader groups
+        m_rtShaderGroups.resize(eShaderGroupCount);
+
+        // Raygen group
+        m_rtShaderGroups[eRaygen].sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
+        m_rtShaderGroups[eRaygen].type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+        m_rtShaderGroups[eRaygen].generalShader = eRaygen;
+        m_rtShaderGroups[eRaygen].closestHitShader = VK_SHADER_UNUSED_KHR;
+        m_rtShaderGroups[eRaygen].anyHitShader = VK_SHADER_UNUSED_KHR;
+        m_rtShaderGroups[eRaygen].intersectionShader = VK_SHADER_UNUSED_KHR;
+
+        // Miss group
+        m_rtShaderGroups[eMiss].sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
+        m_rtShaderGroups[eMiss].type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+        m_rtShaderGroups[eMiss].generalShader = eMiss;
+        m_rtShaderGroups[eMiss].closestHitShader = VK_SHADER_UNUSED_KHR;
+        m_rtShaderGroups[eMiss].anyHitShader = VK_SHADER_UNUSED_KHR;
+        m_rtShaderGroups[eMiss].intersectionShader = VK_SHADER_UNUSED_KHR;
+
+        // Hit group
+        m_rtShaderGroups[eClosestHit].sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
+        m_rtShaderGroups[eClosestHit].type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
+        m_rtShaderGroups[eClosestHit].generalShader = VK_SHADER_UNUSED_KHR;
+        m_rtShaderGroups[eClosestHit].closestHitShader = eClosestHit;
+        m_rtShaderGroups[eClosestHit].anyHitShader = VK_SHADER_UNUSED_KHR;
+        m_rtShaderGroups[eClosestHit].intersectionShader = VK_SHADER_UNUSED_KHR;
+
+        // 3. Crear pipeline layout
+        //Incluir aqui más sets si necesario
+        std::vector<VkDescriptorSetLayout> rtDescSetLayouts = { m_rtDescSetLayout };
+
+        VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{};
+        pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipelineLayoutCreateInfo.setLayoutCount = static_cast<uint32_t>(rtDescSetLayouts.size());
+        pipelineLayoutCreateInfo.pSetLayouts = rtDescSetLayouts.data();
+
+        VkResult result = vkCreatePipelineLayout(*m_device, &pipelineLayoutCreateInfo, nullptr, &m_rtPipelineLayout);
+        if (result != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create ray tracing pipeline layout");
+        }
+
+        // 4. Crear el pipeline de ray tracing
+        VkRayTracingPipelineCreateInfoKHR rayPipelineInfo{};
+        rayPipelineInfo.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
+        rayPipelineInfo.stageCount = static_cast<uint32_t>(stages.size());
+        rayPipelineInfo.pStages = stages.data();
+        rayPipelineInfo.groupCount = static_cast<uint32_t>(m_rtShaderGroups.size());
+        rayPipelineInfo.pGroups = m_rtShaderGroups.data();
+        rayPipelineInfo.maxPipelineRayRecursionDepth = 2; // Ajustar según necesidades
+        rayPipelineInfo.layout = m_rtPipelineLayout;
+
+        result = vkCreateRayTracingPipelinesKHR(*m_device, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &rayPipelineInfo, nullptr, &m_rtPipeline);
+        if (result != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create ray tracing pipeline");
+        }
+
+        // 5. Limpiar módulos de shader
+        vkDestroyShaderModule(*m_device, raygenModule, nullptr);
+        vkDestroyShaderModule(*m_device, missModule, nullptr);
+        vkDestroyShaderModule(*m_device, chitModule, nullptr);
+
+        printf("Ray tracing pipeline created successfully\n");
+    }
+
+
+    void Raytracer::createRtShaderBindingTable() {
+        // 1. Obtener el tamaño de handle de shader group
+        uint32_t groupCount = static_cast<uint32_t>(m_rtShaderGroups.size());
+        uint32_t groupHandleSize = m_rtProperties.shaderGroupHandleSize;
+        uint32_t groupSizeAligned = (groupHandleSize + m_rtProperties.shaderGroupBaseAlignment - 1) &
+            ~(m_rtProperties.shaderGroupBaseAlignment - 1);
+
+        // 2. Obtener handles de shader groups
+        uint32_t sbtDataSize = groupCount * groupHandleSize;
+        std::vector<uint8_t> shaderHandleStorage(sbtDataSize);
+
+        VkResult result = vkGetRayTracingShaderGroupHandlesKHR(*m_device, m_rtPipeline, 0, groupCount,
+            sbtDataSize, shaderHandleStorage.data());
+        if (result != VK_SUCCESS) {
+            throw std::runtime_error("Failed to get ray tracing shader group handles");
+        }
+
+        // 3. Calcular tamaños de regiones
+        VkDeviceSize sbtSize = groupCount * groupSizeAligned;
+
+        // 4. Crear buffer SBT
+        m_rtSBTBuffer = m_vkcore[0].CreateBufferBlas(
+            sbtSize,
+            VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT
+        );
+
+        // 5. Mapear y copiar datos al buffer
+        void* data;
+        vkMapMemory(*m_device, m_rtSBTBuffer.m_mem, 0, sbtSize, 0, &data);
+
+        auto* pSBTBuffer = reinterpret_cast<uint8_t*>(data);
+        for (uint32_t g = 0; g < groupCount; g++) {
+            memcpy(pSBTBuffer, shaderHandleStorage.data() + g * groupHandleSize, groupHandleSize);
+            pSBTBuffer += groupSizeAligned;
+        }
+
+        vkUnmapMemory(*m_device, m_rtSBTBuffer.m_mem);
+
+        // 6. Configurar regiones de SBT
+        VkDeviceAddress sbtAddress = GetBufferDeviceAddress(*m_device, m_rtSBTBuffer.m_buffer);
+
+        m_rgenRegion.deviceAddress = sbtAddress;
+        m_rgenRegion.stride = groupSizeAligned;
+        m_rgenRegion.size = groupSizeAligned;
+
+        m_missRegion.deviceAddress = sbtAddress + groupSizeAligned;
+        m_missRegion.stride = groupSizeAligned;
+        m_missRegion.size = groupSizeAligned;
+
+        m_hitRegion.deviceAddress = sbtAddress + 2 * groupSizeAligned;
+        m_hitRegion.stride = groupSizeAligned;
+        m_hitRegion.size = groupSizeAligned;
+
+        m_callRegion = {}; // No se usa en este ejemplo
+
+        printf("Shader binding table created successfully\n");
+    }
+
+    void Raytracer::raytrace(VkCommandBuffer cmdBuf, int width, int height) {
+        // 1. Transición de imagen a layout correcto
+        VkImageMemoryBarrier imageMemoryBarrier{};
+        imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+        imageMemoryBarrier.srcAccessMask = 0;
+        imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+        imageMemoryBarrier.image = m_outTexture->m_image;
+        imageMemoryBarrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+
+        vkCmdPipelineBarrier(cmdBuf, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+            0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
+
+        // 2. Bind pipeline y descriptor sets
+        vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline);
+        vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout,
+            0, 1, &m_rtDescSet, 0, nullptr);
+
+        // 3. Ejecutar ray tracing
+        vkCmdTraceRaysKHR(cmdBuf, &m_rgenRegion, &m_missRegion, &m_hitRegion, &m_callRegion, width, height, 1);
+
+        // 4. Barrier para asegurar que el ray tracing termine
+        VkMemoryBarrier memoryBarrier{};
+        memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+        memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+        memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        vkCmdPipelineBarrier(cmdBuf, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+            0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
+    }
+
+    void Raytracer::render(int width, int height) {
+        VkCommandBuffer cmdBuf;
+        m_vkcore->CreateCommandBuffer(1, &cmdBuf);
+
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        vkBeginCommandBuffer(cmdBuf, &beginInfo);
+
+        // Ejecutar ray tracing
+        raytrace(cmdBuf, width, height);
+
+        vkEndCommandBuffer(cmdBuf);
+
+        // Submit y esperar
+        core::VulkanQueue* pQueue = m_vkcore->GetQueue();
+        pQueue->SubmitSync(cmdBuf);
+        pQueue->WaitIdle();
+
+        // Limpiar command buffer
+        vkFreeCommandBuffers(m_vkcore->GetDevice(), m_cmdBufPool, 1, &cmdBuf);
     }
 }

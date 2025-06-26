@@ -9,6 +9,7 @@
 #include "core_simple_mesh.h"
 #include "core_vertex.h"
 
+
 #include <cassert>
 
 namespace core {
@@ -96,6 +97,10 @@ namespace core {
 		}
 		void createRtDescriptorSet();
 
+		void createRtPipeline();
+		void createRtShaderBindingTable();
+		void raytrace(VkCommandBuffer cmdBuf, int width, int height);
+		void render(int width, int height);
 	private:
 
 		void createOutImage(int windowwidth, int windowheight);
@@ -144,6 +149,18 @@ namespace core {
 		VkDescriptorPool                                m_rtDescPool;
 		VkDescriptorSetLayout                           m_rtDescSetLayout;
 		VkDescriptorSet                                 m_rtDescSet;
+
+		VkPipeline m_rtPipeline = VK_NULL_HANDLE;
+		VkPipelineLayout m_rtPipelineLayout = VK_NULL_HANDLE;
+		std::vector<VkRayTracingShaderGroupCreateInfoKHR> m_rtShaderGroups;
+
+		// Shader Binding Table
+		core::BufferMemory m_rtSBTBuffer;
+		VkStridedDeviceAddressRegionKHR m_rgenRegion{};
+		VkStridedDeviceAddressRegionKHR m_missRegion{};
+		VkStridedDeviceAddressRegionKHR m_hitRegion{};
+		VkStridedDeviceAddressRegionKHR m_callRegion{};
+
 	};
 
 
