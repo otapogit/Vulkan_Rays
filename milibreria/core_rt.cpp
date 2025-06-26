@@ -94,7 +94,6 @@ namespace core {
 
 		// Ahora puedes llamar a tu implementación
 		buildBlas(allBlas, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
-        printf("\nCreated Blas\n");
 	}
 
     void Raytracer::buildBlas(std::vector<core::BlasInput>& input, VkBuildAccelerationStructureFlagsKHR flags) {
@@ -237,22 +236,160 @@ namespace core {
 
     void Raytracer::createTopLevelAS()
     {
-        std::vector<VkAccelerationStructureInstanceKHR> tlas;
-        //tlas.reserve(m_instances.size());
-        tlas.reserve(2);
-        //for (const HelloVulkan::ObjInstance& inst : m_instances)
-        //{
-            VkAccelerationStructureInstanceKHR rayInst{};
-            rayInst.transform = toTransformMatrixKHR(glm::mat4(1.0f));  // Position of the instance
-            rayInst.instanceCustomIndex = 0;                               // gl_InstanceCustomIndexEXT  NI IDEA DE COMO VA
-            rayInst.accelerationStructureReference = m_blas[0].address;
-            rayInst.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
-            rayInst.mask = 0xFF;       //  Only be hit if rayMask & instance.mask != 0
-            rayInst.instanceShaderBindingTableRecordOffset = 0;  // We will use the same hit group for all objects
-            tlas.emplace_back(rayInst);
-        //}
-        //m_rtBuilder.buildTlas(tlas, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
+        std::vector<VkAccelerationStructureInstanceKHR> instances;
+
+        // Crear instancia para cada BLAS
+        for (size_t i = 0; i < m_blas.size(); i++) {
+            VkAccelerationStructureInstanceKHR instance{};
+            
+            instance.transform = toTransformMatrixKHR(glm::mat4(1.0f));// Matriz de transformación (identidad por defecto)
+            instance.instanceCustomIndex = static_cast<uint32_t>(i);// Índice personalizado de la instancia (accessible en shaders como gl_InstanceCustomIndexEXT)
+            instance.accelerationStructureReference = m_blas[i].address;// Referencia a la BLAS
+            instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR; // Flags de la instancia
+            instance.mask = 0xFF;// Máscara para ray culling (0xFF significa que todos los rays pueden intersectar)
+            instance.instanceShaderBindingTableRecordOffset = 0; // Offset en la shader binding table para hit shaders
+            instances.push_back(instance);
+        }
+        printf("\n%d instances pre build\n", instances.size());
+
+        buildTlas(instances, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
     } 
+
+    void Raytracer::buildTlas(const std::vector<VkAccelerationStructureInstanceKHR>& instances,
+        VkBuildAccelerationStructureFlagsKHR flags)
+    {
+        // 1. Crear buffer para las instancias
+        VkDeviceSize instanceBufferSize = instances.size() * sizeof(VkAccelerationStructureInstanceKHR);
+
+        m_instBuffer = m_vkcore[0].CreateBufferBlas(
+            instanceBufferSize,
+            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+            VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
+            VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT
+        );
+
+        // 2. Copiar datos de instancias al buffer
+        void* data;
+        vkMapMemory(*m_device, m_instBuffer.m_mem, 0, instanceBufferSize, 0, &data);
+        memcpy(data, instances.data(), instanceBufferSize);
+        vkUnmapMemory(*m_device, m_instBuffer.m_mem);
+
+        // 3. Configurar la geometría de instancias
+        VkAccelerationStructureGeometryInstancesDataKHR instancesVk{
+            VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR
+        };
+        instancesVk.arrayOfPointers = VK_FALSE;
+        instancesVk.data.deviceAddress = GetBufferDeviceAddress(*m_device, m_instBuffer.m_buffer);
+
+        // 4. Configurar la geometría
+        VkAccelerationStructureGeometryKHR topASGeometry{
+            VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR
+        };
+        topASGeometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
+        topASGeometry.geometry.instances = instancesVk;
+
+        // 5. Preparar información de construcción
+        core::AccelerationStructureBuildData buildData;
+        buildData.asType = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+        buildData.asGeometry.push_back(topASGeometry);
+
+        VkAccelerationStructureBuildRangeInfoKHR buildOffsetInfo{};
+        buildOffsetInfo.primitiveCount = static_cast<uint32_t>(instances.size());
+        buildOffsetInfo.primitiveOffset = 0;
+        buildOffsetInfo.firstVertex = 0;
+        buildOffsetInfo.transformOffset = 0;
+        buildData.rangeInfo.push_back(buildOffsetInfo);
+
+        // 6. Obtener información de tamaños
+        VkAccelerationStructureBuildSizesInfoKHR sizeInfo = buildData.finalizeGeometry(
+            *m_device, flags, vkGetAccelerationStructureBuildSizesKHR
+        );
+
+        // 7. Crear buffer de scratch
+        core::BufferMemory scratchBuffer = m_vkcore[0].CreateBufferBlas(
+            sizeInfo.buildScratchSize,
+            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT
+        );
+        VkDeviceAddress scratchAddress = GetBufferDeviceAddress(*m_device, scratchBuffer.m_buffer);
+
+        // 8. Crear buffer para la TLAS
+        core::BufferMemory tlasBuffer = m_vkcore[0].CreateBufferBlas(
+            sizeInfo.accelerationStructureSize,
+            VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
+            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+        );
+
+        // 9. Crear la acceleration structure
+        VkAccelerationStructureCreateInfoKHR createInfo{
+            VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR
+        };
+        createInfo.buffer = tlasBuffer.m_buffer;
+        createInfo.size = sizeInfo.accelerationStructureSize;
+        createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+
+        VkResult result = vkCreateAccelerationStructureKHR(*m_device, &createInfo, nullptr, &m_tlas.handle);
+        if (result != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create top level acceleration structure");
+        }
+
+        m_tlas.buffer = tlasBuffer;
+
+        // 10. Obtener la dirección de la TLAS
+        VkAccelerationStructureDeviceAddressInfoKHR addressInfo{
+            VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR
+        };
+        addressInfo.accelerationStructure = m_tlas.handle;
+        m_tlas.address = vkGetAccelerationStructureDeviceAddressKHR(*m_device, &addressInfo);
+
+        // 11. Construir la TLAS
+
+        VkCommandBuffer commandBuffer;
+        m_vkcore->CreateCommandBuffer(1, &commandBuffer);
+
+        VkCommandBufferBeginInfo beginInfo{
+            VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
+        };
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+        // Configurar la información de construcción
+        buildData.buildInfo.dstAccelerationStructure = m_tlas.handle;
+        buildData.buildInfo.scratchData.deviceAddress = scratchAddress;
+
+        // Preparar punteros a la información de rangos
+        VkAccelerationStructureBuildRangeInfoKHR* pBuildRangeInfo = &buildData.rangeInfo[0];
+
+        // Construir la acceleration structure
+        vkCmdBuildAccelerationStructuresKHR(commandBuffer, 1, &buildData.buildInfo, &pBuildRangeInfo);
+
+        // Añadir barrier
+        VkMemoryBarrier barrier{ VK_STRUCTURE_TYPE_MEMORY_BARRIER };
+        barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+        barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+
+        vkCmdPipelineBarrier(commandBuffer,
+            VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+            VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+            0, 1, &barrier, 0, nullptr, 0, nullptr);
+
+        vkEndCommandBuffer(commandBuffer);
+
+        // Submit y esperar
+        core::VulkanQueue* pQueue = m_vkcore[0].GetQueue();
+        pQueue->SubmitSync(commandBuffer);
+        pQueue->WaitIdle();
+
+        // Limpiar
+        vkFreeCommandBuffers(*m_device, m_cmdBufPool, 1, &commandBuffer);
+        vkDestroyBuffer(*m_device, scratchBuffer.m_buffer, nullptr);
+        vkFreeMemory(*m_device, scratchBuffer.m_mem, nullptr);
+
+        printf("TLAS created with %zu instances\n", instances.size());
+    }
 
     VkAccelerationStructureBuildSizesInfoKHR AccelerationStructureBuildData::finalizeGeometry(VkDevice device, VkBuildAccelerationStructureFlagsKHR flags, PFN_vkGetAccelerationStructureBuildSizesKHR pfnGetBuildSizes)
     {
@@ -280,6 +417,134 @@ namespace core {
             maxPrimCount.data(), &sizeInfo);
 
         return sizeInfo;
+    }
+
+    void Raytracer::createRtDescriptorSet() {
+        CreateRtDescriptorPool(1);
+        printf("Creating RT descriptor set layout\n");
+        CreateRtDescriptorSetLayout();
+        //IMPORTANTE, A ESTE DESCRIPTOR SET SE LE DEBERÁ AÑADIR EL OTRO DESCRIPTOR SET DE INFO GENERAL DE LA ESCENA PARA QUE VAYA OK :)
+        printf("Allocating RT Descriptor set\n");
+        AllocateRtDescriptorSet();
+        printf("Writing RT Descriptor set\n");
+        WriteAccStructure();
+    }
+
+    void Raytracer::AllocateRtDescriptorSet() {
+        VkDescriptorSetAllocateInfo allocateInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+        allocateInfo.descriptorPool = m_rtDescPool;
+        allocateInfo.descriptorSetCount = 1;
+        allocateInfo.pSetLayouts = &m_rtDescSetLayout;
+        vkAllocateDescriptorSets(*m_device, &allocateInfo, &m_rtDescSet);
+    }
+
+
+    void Raytracer::CreateRtDescriptorPool(int NumImages) {
+
+        std::vector<VkDescriptorPoolSize> poolSizes;
+
+        // Pool para uniform buffers
+        VkDescriptorPoolSize uniformPoolSize = {};
+        uniformPoolSize.type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+        uniformPoolSize.descriptorCount = (uint32_t)NumImages;
+        poolSizes.push_back(uniformPoolSize);
+
+        // Pool para texturas
+        VkDescriptorPoolSize samplerPoolSize = {};
+        samplerPoolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        samplerPoolSize.descriptorCount = (uint32_t)NumImages;
+        poolSizes.push_back(samplerPoolSize);
+
+        VkDescriptorPoolCreateInfo PoolInfo = {};
+        PoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        //Para alocar cosas en el otro metodo cambiar flags
+        PoolInfo.flags = 0;
+        //Esto puede ser cambiado para pasar mas cosas
+        PoolInfo.maxSets = (uint32_t)NumImages;
+        //A lo mejor hay que cambiar las pools para poner las cosas en especifico tipo uniforms y tal
+        PoolInfo.poolSizeCount = (uint32_t)poolSizes.size();
+        PoolInfo.pPoolSizes = poolSizes.data();
+
+        VkResult res = vkCreateDescriptorPool(*m_device, &PoolInfo, NULL, &m_rtDescPool);
+        CHECK_VK_RESULT(res, "vkCreateDescriptorPool");
+        printf("Descriptor pool created\n");
+
+    }
+
+    void Raytracer::CreateRtDescriptorSetLayout() {
+
+        std::vector<VkDescriptorSetLayoutBinding> LayoutBindings;
+
+        VkDescriptorSetLayoutBinding AccStructureLayoutBinding_Uniform = {};
+        AccStructureLayoutBinding_Uniform.binding = 1;
+        AccStructureLayoutBinding_Uniform.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+        AccStructureLayoutBinding_Uniform.descriptorCount = 1;
+        //Obviamente si es necesario ampliar esto
+        AccStructureLayoutBinding_Uniform.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+
+
+        LayoutBindings.push_back(AccStructureLayoutBinding_Uniform);
+
+        // CORREGIDO: Usar la variable correcta
+        VkDescriptorSetLayoutBinding FragmentShaderLayoutBinding = {};
+        FragmentShaderLayoutBinding.binding = 2;
+        FragmentShaderLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        FragmentShaderLayoutBinding.descriptorCount = 1;
+        FragmentShaderLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+
+        LayoutBindings.push_back(FragmentShaderLayoutBinding);
+
+
+        VkDescriptorSetLayoutCreateInfo LayoutInfo = {};
+        LayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        LayoutInfo.pNext = NULL;
+        LayoutInfo.flags = 0;
+        LayoutInfo.bindingCount = (uint32_t)LayoutBindings.size();
+        LayoutInfo.pBindings = LayoutBindings.data();
+
+        VkResult res = vkCreateDescriptorSetLayout(*m_device, &LayoutInfo, NULL, &m_rtDescSetLayout);
+        CHECK_VK_RESULT(res, "vkCreateDescriptorSetLayout\n");
+
+    }
+
+    void Raytracer::WriteAccStructure() {
+        std::vector<VkWriteDescriptorSet> WriteDescriptorSet;
+        printf("1");
+        //solo hay un m_rtDescSet
+        VkAccelerationStructureKHR tlas = m_tlas.handle;
+        VkWriteDescriptorSetAccelerationStructureKHR descASInfo{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR };
+        descASInfo.accelerationStructureCount = 1;
+        descASInfo.pAccelerationStructures = &tlas;
+        printf("2");
+        VkWriteDescriptorSet wds_t = {};
+        wds_t.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        wds_t.dstSet = m_rtDescSet;
+        wds_t.dstBinding = 1;
+        wds_t.dstArrayElement = 0;
+        wds_t.descriptorCount = 1;
+        wds_t.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+        wds_t.pNext = &descASInfo;
+        WriteDescriptorSet.push_back(wds_t);
+
+        printf("3");
+        //Esto a lo mejor hay que cambiarlo xq no voy a samplear nada, es de output
+        VkDescriptorImageInfo ImageInfo = {};
+        ImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        ImageInfo.imageView = m_outTexture->m_view;
+        ImageInfo.sampler = NULL;
+        printf("4");
+        VkWriteDescriptorSet wds_i = {};
+        wds_i.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        wds_i.dstSet = m_rtDescSet;
+        wds_i.dstBinding = 2;
+        wds_i.dstArrayElement = 0;
+        wds_i.descriptorCount = 1;
+        wds_i.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        wds_i.pImageInfo = &ImageInfo;
+        WriteDescriptorSet.push_back(wds_i);
+        
+        printf("Ahora: Error\n");
+        vkUpdateDescriptorSets(*m_device, (uint32_t)WriteDescriptorSet.size(), WriteDescriptorSet.data(), 0, NULL);
     }
 
     // En tu archivo .cpp, implementa el método:
@@ -322,4 +587,6 @@ namespace core {
             throw std::runtime_error("Failed to load ray tracing functions!");
         }
     }   
+    
+
 }

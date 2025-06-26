@@ -21,6 +21,12 @@ namespace core {
 		VkBuildAccelerationStructureFlagsKHR                  flags{ 0 };
 	};
 	
+	struct TlasInput {
+		std::vector<VkAccelerationStructureInstanceKHR> instances;
+		VkBuildAccelerationStructureFlagsKHR flags = 0;
+	};
+
+
 	struct AccelerationStructureBuildData
 	{
 		VkAccelerationStructureTypeKHR asType = VK_ACCELERATION_STRUCTURE_TYPE_MAX_ENUM_KHR;  // Mandatory to set
@@ -66,6 +72,16 @@ namespace core {
 
 		// Método helper para limpiar recursos
 		void cleanup() {
+			if (m_tlas.handle != VK_NULL_HANDLE) {
+				vkDestroyAccelerationStructureKHR(*m_device, m_tlas.handle, nullptr);
+				vkDestroyBuffer(*m_device, m_tlas.buffer.m_buffer, nullptr);
+				vkFreeMemory(*m_device, m_tlas.buffer.m_mem, nullptr);
+			}
+
+			if (m_instBuffer.m_buffer != VK_NULL_HANDLE) {
+				vkDestroyBuffer(*m_device, m_instBuffer.m_buffer, nullptr);
+				vkFreeMemory(*m_device, m_instBuffer.m_mem, nullptr);
+			}
 			for (auto& blas : m_blas) {
 				if (blas.handle != VK_NULL_HANDLE) {
 					vkDestroyAccelerationStructureKHR(m_device[0], blas.handle, nullptr);
@@ -74,19 +90,38 @@ namespace core {
 				vkDestroyBuffer(m_device[0], blas.buffer.m_buffer, NULL);
 			}
 			m_blas.clear();
+			vkDestroyDescriptorPool(*m_device, m_rtDescPool, nullptr);
+			vkDestroyDescriptorSetLayout(*m_device, m_rtDescSetLayout, nullptr);
 		}
+		void createRtDescriptorSet();
+
 	private:
 
 		void loadRayTracingFunctions();
 		auto objectToVkGeometryKHR(const core::SimpleMesh& model);
 		void buildBlas(std::vector<core::BlasInput>& input, VkBuildAccelerationStructureFlagsKHR flags);
+		void buildTlas(const std::vector<VkAccelerationStructureInstanceKHR>& instances,
+			VkBuildAccelerationStructureFlagsKHR flags);
+		
+		
+		void CreateRtDescriptorPool(int NumImages);
+		void CreateRtDescriptorSetLayout();
+		void AllocateRtDescriptorSet();
+		void WriteAccStructure();
+
 		VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_rtProperties{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR };
 		core::PhysicalDevice m_physicaldevice;
 		VkDevice* m_device;
 		VkCommandPool m_cmdBufPool;
 		// Nuevos miembros para almacenar las BLAS creadas
 		std::vector<AccelerationStructure> m_blas;
+
+		core::AccelerationStructure m_tlas;
+		core::BufferMemory m_instBuffer; // Buffer para las instancias
+
 		VulkanCore* m_vkcore;
+
+		core::VulkanTexture* m_outTexture;
 
 		// Ray tracing function pointers
 		PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR;
@@ -98,6 +133,12 @@ namespace core {
 		PFN_vkCmdTraceRaysKHR vkCmdTraceRaysKHR;
 		PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR;
 		PFN_vkCreateRayTracingPipelinesKHR vkCreateRayTracingPipelinesKHR;
+
+		//Descriptor Sets
+		//nvvk::DescriptorSetBindings                     m_rtDescSetLayoutBind;
+		VkDescriptorPool                                m_rtDescPool;
+		VkDescriptorSetLayout                           m_rtDescSetLayout;
+		VkDescriptorSet                                 m_rtDescSet;
 	};
 
 

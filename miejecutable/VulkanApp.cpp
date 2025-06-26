@@ -82,6 +82,8 @@ public:
 
 			//da error
 			m_raytracer.createBottomLevelAS(meshes);
+			m_raytracer.createTopLevelAS();
+			m_raytracer.createRtDescriptorSet();
 		}
 
 		CreateCommandBuffers();
