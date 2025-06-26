@@ -225,10 +225,16 @@ namespace core {
 		bufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
 		bufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
 
+		// Características de acceleration structure - ESTA ES LA CRÍTICA QUE FALTABA
+		VkPhysicalDeviceAccelerationStructureFeaturesKHR asFeatures = {};
+		asFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+		asFeatures.accelerationStructure = VK_TRUE;
+		asFeatures.pNext = &bufferDeviceAddressFeatures;
+
 		VkPhysicalDeviceRayTracingPipelineFeaturesKHR rtPipelineFeatures = {};
 		rtPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
 		rtPipelineFeatures.rayTracingPipeline = VK_TRUE;
-		rtPipelineFeatures.pNext = &bufferDeviceAddressFeatures;
+		rtPipelineFeatures.pNext = &asFeatures;
 
 		VkDeviceCreateInfo DeviceCreateInfo = {};
 		DeviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -519,7 +525,7 @@ namespace core {
 
 	}
 
-	BufferMemory VulkanCore::CreateVertexBuffer(const void* pVertices, size_t Size) {
+	BufferMemory VulkanCore::CreateVertexBuffer(const void* pVertices, size_t Size, bool rt) {
 
 		VkBufferUsageFlags Usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 		VkMemoryPropertyFlags MemProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
@@ -541,9 +547,12 @@ namespace core {
 		vkUnmapMemory(m_device, StagingVB.m_mem);
 
 		// Step 5: create the final buffer
-		Usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-		MemProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
-		BufferMemory VB = CreateBuffer(Size, Usage, MemProps);
+		Usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT ;
+		if (rt) {
+			Usage = Usage | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+		}
+		MemProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT ;
+		BufferMemory VB = CreateBuffer(Size, Usage, MemProps, rt);
 
 		// Step 6: copy the staging buffer to the final buffer
 		CopyBufferToBuffer(VB.m_buffer, StagingVB.m_buffer, Size);
@@ -554,7 +563,7 @@ namespace core {
 		return VB;
 	}
 
-	BufferMemory VulkanCore::CreateIndexBuffer(const void* pIndices, size_t Size) {
+	BufferMemory VulkanCore::CreateIndexBuffer(const void* pIndices, size_t Size, bool rt) {
 		// Step 1: create a staging buffer
 		VkBufferUsageFlags Usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 		VkMemoryPropertyFlags MemProps = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
@@ -576,9 +585,12 @@ namespace core {
 		vkUnmapMemory(m_device, StagingIB.m_mem);
 
 		// Step 5: create the final index buffer
-		Usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-		MemProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
-		BufferMemory IB = CreateBuffer(Size, Usage, MemProps);
+		Usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT ;
+		if (rt) {
+			Usage = Usage | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+		}
+		MemProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT ;
+		BufferMemory IB = CreateBuffer(Size, Usage, MemProps, rt);
 
 		// Step 6: copy the staging buffer to the final buffer
 		CopyBufferToBuffer(IB.m_buffer, StagingIB.m_buffer, Size);
@@ -590,10 +602,10 @@ namespace core {
 	}
 
 	BufferMemory VulkanCore::CreateBufferBlas(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags flags) {
-		return CreateBuffer(size, usage, flags);
+		return CreateBuffer(size, usage, flags, true);
 	}
 
-	BufferMemory VulkanCore::CreateBuffer(VkDeviceSize Size, VkBufferUsageFlags Usage, VkMemoryPropertyFlags Properties) {
+	BufferMemory VulkanCore::CreateBuffer(VkDeviceSize Size, VkBufferUsageFlags Usage, VkMemoryPropertyFlags Properties, bool rt) {
 		VkBufferCreateInfo vbCreateInfo = {};
 		vbCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		vbCreateInfo.size = Size;
@@ -619,12 +631,21 @@ namespace core {
 		uint32_t MemoryTypeIndex = GetMemoryTypeIndex(MemReqs.memoryTypeBits, Properties);
 		//printf("Memory type index %d\n", MemoryTypeIndex);
 
+
+
 		// Step 4: allocate memory
 		VkMemoryAllocateInfo MemAllocInfo = {};
 		MemAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		MemAllocInfo.pNext = NULL;
 		MemAllocInfo.allocationSize = MemReqs.size;
 		MemAllocInfo.memoryTypeIndex = MemoryTypeIndex;
+
+		VkMemoryAllocateFlagsInfo allocFlagsInfo = {};
+		if (Usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) {
+			allocFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
+			allocFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
+			MemAllocInfo.pNext = &allocFlagsInfo;
+		}
 
 		res = vkAllocateMemory(m_device, &MemAllocInfo, NULL, &Buf.m_mem);
 		CHECK_VK_RESULT(res, "vkAllocateMemory error %d\n");

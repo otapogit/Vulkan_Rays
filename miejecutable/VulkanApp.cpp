@@ -75,12 +75,14 @@ public:
 
 		std::vector<core::SimpleMesh> meshes = { m_mesh,m_mesh1 };
 
-		//Raytracer
-		m_raytracer.initRayTracing(m_vkcore.GetSelectedPhysicalDevice(), &m_device);
-		m_raytracer.setup(m_vkcore.GetCommandPool(), &m_vkcore);
+		if (rt_active) {
+			//Raytracer
+			m_raytracer.initRayTracing(m_vkcore.GetSelectedPhysicalDevice(), &m_device);
+			m_raytracer.setup(m_vkcore.GetCommandPool(), &m_vkcore);
 
-		//da error
-		m_raytracer.createBottomLevelAS(meshes);
+			//da error
+			m_raytracer.createBottomLevelAS(meshes);
+		}
 
 		CreateCommandBuffers();
 		RecordCommandBuffers();
@@ -197,11 +199,11 @@ private:
 
 		// Crear vertex buffer
 		m_mesh.m_vertexBufferSize = sizeof(vertices[0]) * vertices.size();
-		m_mesh.m_vb = m_vkcore.CreateVertexBuffer(vertices.data(), m_mesh.m_vertexBufferSize);
+		m_mesh.m_vb = m_vkcore.CreateVertexBuffer(vertices.data(), m_mesh.m_vertexBufferSize, rt_active);
 
 		// Crear index buffer
 		m_mesh.m_indexBufferSize = sizeof(indices[0]) * indices.size();
-		m_mesh.m_indexbuffer = m_vkcore.CreateIndexBuffer(indices.data(), m_mesh.m_indexBufferSize);
+		m_mesh.m_indexbuffer = m_vkcore.CreateIndexBuffer(indices.data(), m_mesh.m_indexBufferSize, rt_active);
 		m_mesh.m_indexType = VK_INDEX_TYPE_UINT32;
 
 		m_mesh.vertexcount = indices.size(); // Número de índices, no vértices
@@ -237,11 +239,11 @@ private:
 
 		// Crear vertex buffer
 		m_mesh1.m_vertexBufferSize = sizeof(vertices[0]) * vertices.size();
-		m_mesh1.m_vb = m_vkcore.CreateVertexBuffer(vertices.data(), m_mesh1.m_vertexBufferSize);
+		m_mesh1.m_vb = m_vkcore.CreateVertexBuffer(vertices.data(), m_mesh1.m_vertexBufferSize, rt_active);
 
 		// Crear index buffer
 		m_mesh1.m_indexBufferSize = sizeof(indices[0]) * indices.size();
-		m_mesh1.m_indexbuffer = m_vkcore.CreateIndexBuffer(indices.data(), m_mesh1.m_indexBufferSize);
+		m_mesh1.m_indexbuffer = m_vkcore.CreateIndexBuffer(indices.data(), m_mesh1.m_indexBufferSize, rt_active);
 		m_mesh1.m_indexType = VK_INDEX_TYPE_UINT32;
 
 		m_mesh1.vertexcount = indices.size(); // Número de índices, no vértices
@@ -372,7 +374,7 @@ private:
 
 	std::vector<core::BufferMemory> m_uniformBuffers;
 
-
+	bool rt_active = true;
 
 	///RAYTRACING
 	core::Raytracer m_raytracer;

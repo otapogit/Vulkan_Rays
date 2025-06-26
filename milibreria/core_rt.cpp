@@ -94,6 +94,7 @@ namespace core {
 
 		// Ahora puedes llamar a tu implementación
 		buildBlas(allBlas, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
+        printf("\nCreated Blas\n");
 	}
 
     void Raytracer::buildBlas(std::vector<core::BlasInput>& input, VkBuildAccelerationStructureFlagsKHR flags) {
@@ -132,7 +133,7 @@ namespace core {
 
 
             core::BufferMemory asBuffer = m_vkcore[0].CreateBufferBlas(buildSizes[idx].accelerationStructureSize,
-                                            VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                                            VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
                                             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
             // Crear la acceleration structure
@@ -320,5 +321,5 @@ namespace core {
             !vkCreateRayTracingPipelinesKHR) {
             throw std::runtime_error("Failed to load ray tracing functions!");
         }
-    }
+    }   
 }

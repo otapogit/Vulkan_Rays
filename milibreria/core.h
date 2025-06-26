@@ -48,8 +48,8 @@ namespace core {
 		VkDevice& GetDevice() { return m_device; }
 		VkCommandPool GetCommandPool() { return m_cmdBufPool; }
 		std::vector<VkFramebuffer> CreateFrameBuffers(VkRenderPass RenderPass);
-		BufferMemory CreateVertexBuffer(const void* pVertices, size_t Size);
-		BufferMemory CreateIndexBuffer(const void* pIndices, size_t Size);
+		BufferMemory CreateVertexBuffer(const void* pVertices, size_t Size, bool rt = false);
+		BufferMemory CreateIndexBuffer(const void* pIndices, size_t Size, bool rt = false);
 		//BufferMemory CreateSimpleVertexBuffer(const void* pVertices, size_t Size);
 		std::vector<BufferMemory> CreateUniformBuffers(size_t Size);
 		void CreateTexture(const char* filename, VulkanTexture& Tex);
@@ -63,7 +63,7 @@ namespace core {
 		void CreateSwapChain();
 		void CreateCommandBufferPool();
 		void CopyBufferToBuffer(VkBuffer Dst, VkBuffer Src, VkDeviceSize Size);
-		BufferMemory CreateBuffer(VkDeviceSize Size, VkBufferUsageFlags Usage, VkMemoryPropertyFlags Properties);
+		BufferMemory CreateBuffer(VkDeviceSize Size, VkBufferUsageFlags Usage, VkMemoryPropertyFlags Properties, bool rt=false);
 		uint32_t GetMemoryTypeIndex(uint32_t MemTypeBitsMask, VkMemoryPropertyFlags ReqMemPropFlags);
 
 		BufferMemory CreateUniformBuffer(size_t Size);
