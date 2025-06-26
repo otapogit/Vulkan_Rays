@@ -542,7 +542,7 @@ namespace core {
 
 		// Step 5: create the final buffer
 		Usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-		MemProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+		MemProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
 		BufferMemory VB = CreateBuffer(Size, Usage, MemProps);
 
 		// Step 6: copy the staging buffer to the final buffer
@@ -577,7 +577,7 @@ namespace core {
 
 		// Step 5: create the final index buffer
 		Usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-		MemProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+		MemProps = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
 		BufferMemory IB = CreateBuffer(Size, Usage, MemProps);
 
 		// Step 6: copy the staging buffer to the final buffer

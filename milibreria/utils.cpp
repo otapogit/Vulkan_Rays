@@ -103,6 +103,9 @@ namespace core {
 		info.buffer = buffer;
 		info.pNext = NULL;
 
-		return vkGetBufferDeviceAddress(device, &info);
+		PFN_vkGetBufferDeviceAddressKHR vkGetBufferDeviceAddressKHR = reinterpret_cast<PFN_vkGetBufferDeviceAddressKHR>(
+			vkGetDeviceProcAddr(device, "vkGetBufferDeviceAddressKHR"));
+
+		return vkGetBufferDeviceAddressKHR(device, &info);
 	}
 }

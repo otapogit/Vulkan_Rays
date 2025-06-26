@@ -36,12 +36,9 @@ namespace core {
 //
 	auto Raytracer::objectToVkGeometryKHR(const core::SimpleMesh& model)
 	{
-        printf("Preaddress");
 		// BLAS builder requires raw device addresses.
 		VkDeviceAddress vertexAddress = GetBufferDeviceAddress(*m_device, model.m_vb.m_buffer);
-        printf("Interadress");
 		VkDeviceAddress indexAddress = GetBufferDeviceAddress(*m_device, model.m_indexbuffer.m_buffer);
-        printf("postaddress");
 
 		uint32_t maxPrimitiveCount = model.m_vertexBufferSize / 3;
 
@@ -75,6 +72,8 @@ namespace core {
 		input.asGeometry.emplace_back(asGeom);
 		input.asBuildOffsetInfo.emplace_back(offset);
 
+        printf("BLAS created for %d triangles\n", maxPrimitiveCount);
+
 		return input;
 	}
 
@@ -84,7 +83,7 @@ namespace core {
 		std::vector<core::BlasInput> allBlas;
 		allBlas.reserve(meshes.size());
 
-        printf("Es increible como se construyen las BLAS");
+        printf("\n");
 
 		for (const core::SimpleMesh& obj : meshes) {
             //Da error aqui
@@ -92,7 +91,6 @@ namespace core {
 			allBlas.emplace_back(blas);
 		}
 
-        printf("Es increible como se construyen las BLAS 2");
 
 		// Ahora puedes llamar a tu implementación
 		buildBlas(allBlas, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
@@ -120,7 +118,8 @@ namespace core {
         // 2. Crear buffer de scratch
  
 
-        core::BufferMemory blasScratchBuffer = m_vkcore[0].CreateBufferBlas(maxScratchSize, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        core::BufferMemory blasScratchBuffer = m_vkcore[0].CreateBufferBlas(maxScratchSize, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
 
         // Obtener la dirección del device del buffer de scratch
         VkDeviceAddress scratchAddress = GetBufferDeviceAddress(*m_device, blasScratchBuffer.m_buffer);
@@ -286,32 +285,32 @@ namespace core {
     void Raytracer::loadRayTracingFunctions() {
         // Cargar funciones de acceleration structure
         vkCreateAccelerationStructureKHR = reinterpret_cast<PFN_vkCreateAccelerationStructureKHR>(
-            vkGetDeviceProcAddr(m_device[0], "vkCreateAccelerationStructureKHR"));
+            vkGetDeviceProcAddr(*m_device, "vkCreateAccelerationStructureKHR"));
 
         vkDestroyAccelerationStructureKHR = reinterpret_cast<PFN_vkDestroyAccelerationStructureKHR>(
-            vkGetDeviceProcAddr(m_device[0], "vkDestroyAccelerationStructureKHR"));
+            vkGetDeviceProcAddr(*m_device, "vkDestroyAccelerationStructureKHR"));
 
         vkGetAccelerationStructureBuildSizesKHR = reinterpret_cast<PFN_vkGetAccelerationStructureBuildSizesKHR>(
-            vkGetDeviceProcAddr(m_device[0], "vkGetAccelerationStructureBuildSizesKHR"));
+            vkGetDeviceProcAddr(*m_device, "vkGetAccelerationStructureBuildSizesKHR"));
 
         vkGetAccelerationStructureDeviceAddressKHR = reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(
-            vkGetDeviceProcAddr(m_device[0], "vkGetAccelerationStructureDeviceAddressKHR"));
+            vkGetDeviceProcAddr(*m_device, "vkGetAccelerationStructureDeviceAddressKHR"));
 
         vkCmdBuildAccelerationStructuresKHR = reinterpret_cast<PFN_vkCmdBuildAccelerationStructuresKHR>(
-            vkGetDeviceProcAddr(m_device[0], "vkCmdBuildAccelerationStructuresKHR"));
+            vkGetDeviceProcAddr(*m_device, "vkCmdBuildAccelerationStructuresKHR"));
 
         vkBuildAccelerationStructuresKHR = reinterpret_cast<PFN_vkBuildAccelerationStructuresKHR>(
-            vkGetDeviceProcAddr(m_device[0], "vkBuildAccelerationStructuresKHR"));
+            vkGetDeviceProcAddr(*m_device, "vkBuildAccelerationStructuresKHR"));
 
         // Cargar funciones de ray tracing pipeline
         vkCmdTraceRaysKHR = reinterpret_cast<PFN_vkCmdTraceRaysKHR>(
-            vkGetDeviceProcAddr(m_device[0], "vkCmdTraceRaysKHR"));
+            vkGetDeviceProcAddr(*m_device, "vkCmdTraceRaysKHR"));
 
         vkGetRayTracingShaderGroupHandlesKHR = reinterpret_cast<PFN_vkGetRayTracingShaderGroupHandlesKHR>(
-            vkGetDeviceProcAddr(m_device[0], "vkGetRayTracingShaderGroupHandlesKHR"));
+            vkGetDeviceProcAddr(*m_device, "vkGetRayTracingShaderGroupHandlesKHR"));
 
         vkCreateRayTracingPipelinesKHR = reinterpret_cast<PFN_vkCreateRayTracingPipelinesKHR>(
-            vkGetDeviceProcAddr(m_device[0], "vkCreateRayTracingPipelinesKHR"));
+            vkGetDeviceProcAddr(*m_device, "vkCreateRayTracingPipelinesKHR"));
 
         // Verificar que todas las funciones se cargaron correctamente
         if (!vkCreateAccelerationStructureKHR || !vkDestroyAccelerationStructureKHR ||
