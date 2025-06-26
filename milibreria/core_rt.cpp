@@ -14,13 +14,18 @@ namespace core {
 	/*
 	* Metodo para pasar todos los componentes necesarios del core aqui
 	* Quiero mantener encapsulado de cierta manera el raytracing
+    * 
+    * Componentes necesarios por ahora: Core, MEshes, tamaño textura de salida
 	*/
 	void Raytracer::setup( VkCommandPool pool, core::VulkanCore* core) {
 
 		m_cmdBufPool = pool;
         m_vkcore = core;
         loadRayTracingFunctions();
-	}
+        m_outTexture = new core::VulkanTexture();
+        createOutImage(800,800);
+    }
+
 
 	void Raytracer::initRayTracing(core::PhysicalDevice physdev, VkDevice* dev)
 	{
@@ -587,6 +592,9 @@ namespace core {
             throw std::runtime_error("Failed to load ray tracing functions!");
         }
     }   
-    
 
+    void Raytracer::createOutImage(int windowwidth, int windowheight) {
+        VkFormat Format = VK_FORMAT_R8G8B8A8_UNORM;
+        m_vkcore->CreateTextureImage(*m_outTexture, (uint32_t)windowwidth, (uint32_t)windowheight, Format);
+    }
 }

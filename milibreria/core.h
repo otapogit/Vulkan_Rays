@@ -53,6 +53,7 @@ namespace core {
 		//BufferMemory CreateSimpleVertexBuffer(const void* pVertices, size_t Size);
 		std::vector<BufferMemory> CreateUniformBuffers(size_t Size);
 		void CreateTexture(const char* filename, VulkanTexture& Tex);
+		void CreateTextureImage(VulkanTexture& Tex, uint32_t ImageWidth, uint32_t ImageHeight, VkFormat TexFormat);
 		BufferMemory CreateBufferBlas(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags flags);
 
 	private:
@@ -71,6 +72,7 @@ namespace core {
 		void CreateTextureImageFromData(VulkanTexture& Tex, const void* pPixels, uint32_t ImageWidth, uint32_t ImageHeight, VkFormat TexFormat);
 		void UpdateTextureImage(VulkanTexture& Tex, uint32_t ImageWidth, uint32_t ImageHeight,VkFormat TexFormat, const void* pPixels);
 		void CreateImage(VulkanTexture& Tex, uint32_t ImageWidth, uint32_t ImageHeight, VkFormat TexFormat,VkImageUsageFlags UsageFlags, VkMemoryPropertyFlagBits PropertyFlags);
+		
 		void TransitionImageLayout(VkImage& Image, VkFormat Format,VkImageLayout OldLayout, VkImageLayout NewLayout);
 		void CopyBufferToImage(VkImage Dst, VkBuffer Src, uint32_t ImageWidth, uint32_t ImageHeight);
 		void SubmitCopyCommand();

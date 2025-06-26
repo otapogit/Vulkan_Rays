@@ -822,7 +822,16 @@ namespace core {
 
 		UpdateTextureImage(Tex, ImageWidth, ImageHeight, TexFormat, pPixels);
 	}
+	void VulkanCore::CreateTextureImage(VulkanTexture& Tex, uint32_t ImageWidth, uint32_t ImageHeight, VkFormat TexFormat) {
+		VkImageUsageFlagBits Usage = (VkImageUsageFlagBits)(VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+			VK_IMAGE_USAGE_STORAGE_BIT);
+		//device local es en la gpu
+		VkMemoryPropertyFlagBits PropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+		CreateImage(Tex, ImageWidth, ImageHeight, TexFormat, Usage, PropertyFlags);
 
+		VkImageAspectFlags AspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
+		Tex.m_view = CreateImageView(m_device, Tex.m_image, TexFormat, AspectFlags);
+	}
 
 	void VulkanCore::CreateImage(VulkanTexture& Tex, uint32_t ImageWidth, uint32_t ImageHeight, VkFormat TexFormat,
 		VkImageUsageFlags UsageFlags, VkMemoryPropertyFlagBits PropertyFlags)

@@ -70,6 +70,7 @@ namespace core {
 
 
 
+
 		// Método helper para limpiar recursos
 		void cleanup() {
 			if (m_tlas.handle != VK_NULL_HANDLE) {
@@ -97,6 +98,8 @@ namespace core {
 
 	private:
 
+		void createOutImage(int windowwidth, int windowheight);
+
 		void loadRayTracingFunctions();
 		auto objectToVkGeometryKHR(const core::SimpleMesh& model);
 		void buildBlas(std::vector<core::BlasInput>& input, VkBuildAccelerationStructureFlagsKHR flags);
@@ -122,6 +125,8 @@ namespace core {
 		VulkanCore* m_vkcore;
 
 		core::VulkanTexture* m_outTexture;
+
+		int windowwidth, windowheight;
 
 		// Ray tracing function pointers
 		PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR;
