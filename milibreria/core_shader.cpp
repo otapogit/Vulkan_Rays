@@ -106,11 +106,11 @@ namespace core {
 		input.language = GLSLANG_SOURCE_GLSL;
 		input.stage = Stage;
 		input.client = GLSLANG_CLIENT_VULKAN;
-		input.client_version = GLSLANG_TARGET_VULKAN_1_1;
+		input.client_version = GLSLANG_TARGET_VULKAN_1_2;
 		input.target_language = GLSLANG_TARGET_SPV;
 		input.target_language_version = GLSLANG_TARGET_SPV_1_4;
 		input.code = pShaderCode;
-		input.default_version = 100;
+		input.default_version = 460;
 		input.default_profile = GLSLANG_NO_PROFILE;
 		input.force_default_version_and_profile = false;
 		input.forward_compatible = false;

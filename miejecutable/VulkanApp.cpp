@@ -90,7 +90,7 @@ public:
 			VkShaderModule rchit = core::CreateShaderModuleFromText(m_vkcore.GetDevice(), "shaders/raytrace.rchit");
 
 			m_raytracer.createRtPipeline(rgen, rmiss, rchit);
-
+			m_raytracer.createRtShaderBindingTable();
 
 
 			vkDestroyShaderModule(m_vkcore.GetDevice(), rgen, nullptr);

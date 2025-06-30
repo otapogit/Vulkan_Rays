@@ -610,6 +610,7 @@ namespace core {
 
         // Raygen shader
         VkShaderModule raygenModule = rgenModule;
+        stages[eRaygen] = {};
         stages[eRaygen].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         stages[eRaygen].stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
         stages[eRaygen].module = raygenModule;
@@ -619,6 +620,7 @@ namespace core {
 
         // Miss shader
         VkShaderModule missModule = rmissModule;
+        stages[eMiss] = {};
         stages[eMiss].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         stages[eMiss].stage = VK_SHADER_STAGE_MISS_BIT_KHR;
         stages[eMiss].module = missModule;
@@ -628,6 +630,7 @@ namespace core {
 
         // Closest hit shader
         VkShaderModule chitModule = rchitModule;
+        stages[eClosestHit] = {};
         stages[eClosestHit].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         stages[eClosestHit].stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
         stages[eClosestHit].module = chitModule;
@@ -819,5 +822,115 @@ namespace core {
 
         // Limpiar command buffer
         vkFreeCommandBuffers(m_vkcore->GetDevice(), m_cmdBufPool, 1, &cmdBuf);
+    }
+
+    void Raytracer::saveImageToPNG(const std::string& filename, int width, int height) {
+        VkDevice device = m_vkcore->GetDevice();
+
+        // Crear command buffer temporal
+        VkCommandBuffer cmdBuf;
+        m_vkcore->CreateCommandBuffer(1, &cmdBuf);
+
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        vkBeginCommandBuffer(cmdBuf, &beginInfo);
+
+        // Crear staging buffer
+        VkDeviceSize imageSize = width * height * 4; // RGBA8
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        createStagingBuffer(imageSize, stagingBuffer, stagingBufferMemory);
+
+        // Transición de layout para transferencia
+        m_vkcore->TransitionImageLayout((m_outTexture[0].m_image), VK_FORMAT_R8G8B8A8_UNORM,
+            VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+        // Copiar imagen a buffer
+        VkBufferImageCopy region{};
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+        region.imageOffset = { 0, 0, 0 };
+        region.imageExtent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1 };
+
+        vkCmdCopyImageToBuffer(cmdBuf, (m_outTexture[0].m_image), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            stagingBuffer, 1, &region);
+
+        // Restaurar layout original
+        m_vkcore->TransitionImageLayout((m_outTexture[0].m_image), VK_FORMAT_R8G8B8A8_UNORM,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+
+        vkEndCommandBuffer(cmdBuf);
+
+        // Submit y esperar
+        core::VulkanQueue* pQueue = m_vkcore->GetQueue();
+        pQueue->SubmitSync(cmdBuf);
+        pQueue->WaitIdle();
+
+        // Mapear memoria y leer datos
+        void* data;
+        vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
+
+        // Convertir de RGBA a RGB si es necesario (stb_image_write soporta ambos)
+        // Para PNG con canal alpha, usar directamente RGBA
+        int result = stbi_write_png(filename.c_str(), width, height, 4, data, width * 4);
+
+        if (result == 0) {
+            printf("Failed to write PNG file: %s\n", filename.c_str());
+        }
+        else {
+            printf("Successfully saved image to: %s\n", filename.c_str());
+        }
+
+        // Limpiar recursos
+        vkUnmapMemory(device, stagingBufferMemory);
+        vkDestroyBuffer(device, stagingBuffer, nullptr);
+        vkFreeMemory(device, stagingBufferMemory, nullptr);
+        vkFreeCommandBuffers(device, m_cmdBufPool, 1, &cmdBuf);
+    }
+
+    void Raytracer::createStagingBuffer(VkDeviceSize size, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
+        VkBufferCreateInfo bufferInfo{};
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.size = size;
+        bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        if (vkCreateBuffer(m_vkcore->GetDevice(), &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create staging buffer!");
+        }
+
+        VkMemoryRequirements memRequirements;
+        vkGetBufferMemoryRequirements(m_vkcore->GetDevice(), buffer, &memRequirements);
+
+        VkMemoryAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.allocationSize = memRequirements.size;
+        allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        if (vkAllocateMemory(m_vkcore->GetDevice(), &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to allocate staging buffer memory!");
+        }
+
+        vkBindBufferMemory(m_vkcore->GetDevice(), buffer, bufferMemory, 0);
+    }
+
+    uint32_t Raytracer::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+        VkPhysicalDeviceMemoryProperties memProperties;
+        vkGetPhysicalDeviceMemoryProperties(m_vkcore->GetSelectedPhysicalDevice().m_physDevice, &memProperties);
+
+        for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+            if ((typeFilter & (1 << i)) &&
+                (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+                return i;
+            }
+        }
+        throw std::runtime_error("Failed to find suitable memory type!");
     }
 }

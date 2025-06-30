@@ -56,6 +56,8 @@ namespace core {
 		void CreateTextureImage(VulkanTexture& Tex, uint32_t ImageWidth, uint32_t ImageHeight, VkFormat TexFormat);
 		BufferMemory CreateBufferBlas(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags flags);
 
+		void TransitionImageLayout(VkImage& Image, VkFormat Format, VkImageLayout OldLayout, VkImageLayout NewLayout);
+
 	private:
 		void CreateInstance(const char* pAppName);
 		void CreateDebugCallback();
@@ -73,7 +75,7 @@ namespace core {
 		void UpdateTextureImage(VulkanTexture& Tex, uint32_t ImageWidth, uint32_t ImageHeight,VkFormat TexFormat, const void* pPixels);
 		void CreateImage(VulkanTexture& Tex, uint32_t ImageWidth, uint32_t ImageHeight, VkFormat TexFormat,VkImageUsageFlags UsageFlags, VkMemoryPropertyFlagBits PropertyFlags);
 		
-		void TransitionImageLayout(VkImage& Image, VkFormat Format,VkImageLayout OldLayout, VkImageLayout NewLayout);
+		
 		void CopyBufferToImage(VkImage Dst, VkBuffer Src, uint32_t ImageWidth, uint32_t ImageHeight);
 		void SubmitCopyCommand();
 		void CreateDepthResources();

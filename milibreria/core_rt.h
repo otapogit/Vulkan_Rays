@@ -8,7 +8,7 @@
 #include "core.h"
 #include "core_simple_mesh.h"
 #include "core_vertex.h"
-
+#include "3rdParty/stb_image_write.h"
 
 #include <cassert>
 
@@ -94,6 +94,7 @@ namespace core {
 			m_blas.clear();
 			vkDestroyDescriptorPool(*m_device, m_rtDescPool, nullptr);
 			vkDestroyDescriptorSetLayout(*m_device, m_rtDescSetLayout, nullptr);
+			m_outTexture->Destroy(*m_device);
 		}
 		void createRtDescriptorSet();
 
@@ -116,6 +117,10 @@ namespace core {
 		void CreateRtDescriptorSetLayout();
 		void AllocateRtDescriptorSet();
 		void WriteAccStructure();
+
+		void saveImageToPNG(const std::string& filename, int width, int height);
+		void createStagingBuffer(VkDeviceSize size, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+		uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
 		VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_rtProperties{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR };
 		core::PhysicalDevice m_physicaldevice;
