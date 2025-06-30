@@ -87,6 +87,15 @@ namespace core {
 		if (endsWith(s, ".comp")) {
 			return GLSLANG_STAGE_COMPUTE;
 		}
+		if (endsWith(s, ".rgen")) {
+			return GLSLANG_STAGE_RAYGEN;
+		}
+		if (endsWith(s, ".rmiss")) {
+			return GLSLANG_STAGE_MISS;
+		}
+		if (endsWith(s, ".rchit")) {
+			return GLSLANG_STAGE_CLOSESTHIT;
+		}
 		return GLSLANG_STAGE_VERTEX;
 	}
 
@@ -99,7 +108,7 @@ namespace core {
 		input.client = GLSLANG_CLIENT_VULKAN;
 		input.client_version = GLSLANG_TARGET_VULKAN_1_1;
 		input.target_language = GLSLANG_TARGET_SPV;
-		input.target_language_version = GLSLANG_TARGET_SPV_1_3;
+		input.target_language_version = GLSLANG_TARGET_SPV_1_4;
 		input.code = pShaderCode;
 		input.default_version = 100;
 		input.default_profile = GLSLANG_NO_PROFILE;

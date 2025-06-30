@@ -84,6 +84,18 @@ public:
 			m_raytracer.createBottomLevelAS(meshes);
 			m_raytracer.createTopLevelAS();
 			m_raytracer.createRtDescriptorSet();
+
+			VkShaderModule rgen = core::CreateShaderModuleFromText(m_vkcore.GetDevice(), "shaders/raytrace.rgen");
+			VkShaderModule rmiss = core::CreateShaderModuleFromText(m_vkcore.GetDevice(), "shaders/raytrace.rmiss");
+			VkShaderModule rchit = core::CreateShaderModuleFromText(m_vkcore.GetDevice(), "shaders/raytrace.rchit");
+
+			m_raytracer.createRtPipeline(rgen, rmiss, rchit);
+
+
+
+			vkDestroyShaderModule(m_vkcore.GetDevice(), rgen, nullptr);
+			vkDestroyShaderModule(m_vkcore.GetDevice(), rmiss, nullptr);
+			vkDestroyShaderModule(m_vkcore.GetDevice(), rchit, nullptr);
 		}
 
 		CreateCommandBuffers();

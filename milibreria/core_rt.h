@@ -97,7 +97,7 @@ namespace core {
 		}
 		void createRtDescriptorSet();
 
-		void createRtPipeline();
+		void createRtPipeline(VkShaderModule rgenModule, VkShaderModule rmissModule, VkShaderModule rchitModule);
 		void createRtShaderBindingTable();
 		void raytrace(VkCommandBuffer cmdBuf, int width, int height);
 		void render(int width, int height);

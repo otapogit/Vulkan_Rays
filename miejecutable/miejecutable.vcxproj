@@ -139,6 +139,9 @@
     <ClCompile Include="VulkanApp.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="shaders\raytrace.rchit" />
+    <None Include="shaders\raytrace.rgen" />
+    <None Include="shaders\raytrace.rmiss" />
     <None Include="test.frag" />
     <None Include="test.vert" />
   </ItemGroup>

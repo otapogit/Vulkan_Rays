@@ -516,13 +516,11 @@ namespace core {
 
     void Raytracer::WriteAccStructure() {
         std::vector<VkWriteDescriptorSet> WriteDescriptorSet;
-        printf("1");
         //solo hay un m_rtDescSet
         VkAccelerationStructureKHR tlas = m_tlas.handle;
         VkWriteDescriptorSetAccelerationStructureKHR descASInfo{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR };
         descASInfo.accelerationStructureCount = 1;
         descASInfo.pAccelerationStructures = &tlas;
-        printf("2");
         VkWriteDescriptorSet wds_t = {};
         wds_t.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         wds_t.dstSet = m_rtDescSet;
@@ -533,13 +531,11 @@ namespace core {
         wds_t.pNext = &descASInfo;
         WriteDescriptorSet.push_back(wds_t);
 
-        printf("3");
         //Esto a lo mejor hay que cambiarlo xq no voy a samplear nada, es de output
         VkDescriptorImageInfo ImageInfo = {};
         ImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
         ImageInfo.imageView = m_outTexture->m_view;
         ImageInfo.sampler = NULL;
-        printf("4");
         VkWriteDescriptorSet wds_i = {};
         wds_i.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         wds_i.dstSet = m_rtDescSet;
@@ -549,8 +545,7 @@ namespace core {
         wds_i.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
         wds_i.pImageInfo = &ImageInfo;
         WriteDescriptorSet.push_back(wds_i);
-        
-        printf("Ahora: Error\n");
+       
         vkUpdateDescriptorSets(*m_device, (uint32_t)WriteDescriptorSet.size(), WriteDescriptorSet.data(), 0, NULL);
     }
 
@@ -600,7 +595,7 @@ namespace core {
         m_vkcore->CreateTextureImage(*m_outTexture, (uint32_t)windowwidth, (uint32_t)windowheight, Format);
     }
 
-    void Raytracer::createRtPipeline() {
+    void Raytracer::createRtPipeline(VkShaderModule rgenModule, VkShaderModule rmissModule, VkShaderModule rchitModule) {
         // 1. Cargar shaders
         enum StageIndices {
             eRaygen,
@@ -614,25 +609,31 @@ namespace core {
         //A lo mejor es interesante pasar los shaders desde el ejecutable
 
         // Raygen shader
-        VkShaderModule raygenModule = core::CreateShaderModuleFromText(*m_device,"xd");
+        VkShaderModule raygenModule = rgenModule;
         stages[eRaygen].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         stages[eRaygen].stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
         stages[eRaygen].module = raygenModule;
         stages[eRaygen].pName = "main";
+        stages[eRaygen].pNext = nullptr;
+        stages[eRaygen].flags = 0;
 
         // Miss shader
-        VkShaderModule missModule = core::CreateShaderModuleFromText(*m_device,"xd");
+        VkShaderModule missModule = rmissModule;
         stages[eMiss].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         stages[eMiss].stage = VK_SHADER_STAGE_MISS_BIT_KHR;
         stages[eMiss].module = missModule;
         stages[eMiss].pName = "main";
+        stages[eMiss].pNext = nullptr;
+        stages[eMiss].flags = 0;
 
         // Closest hit shader
-        VkShaderModule chitModule = core::CreateShaderModuleFromText(*m_device,"xd");
+        VkShaderModule chitModule = rchitModule;
         stages[eClosestHit].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         stages[eClosestHit].stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
         stages[eClosestHit].module = chitModule;
         stages[eClosestHit].pName = "main";
+        stages[eClosestHit].pNext = nullptr;
+        stages[eClosestHit].flags = 0;
 
         // 2. Crear shader groups
         m_rtShaderGroups.resize(eShaderGroupCount);
@@ -670,6 +671,8 @@ namespace core {
         pipelineLayoutCreateInfo.setLayoutCount = static_cast<uint32_t>(rtDescSetLayouts.size());
         pipelineLayoutCreateInfo.pSetLayouts = rtDescSetLayouts.data();
 
+        printf("Creating rt pipeline layout\n");
+
         VkResult result = vkCreatePipelineLayout(*m_device, &pipelineLayoutCreateInfo, nullptr, &m_rtPipelineLayout);
         if (result != VK_SUCCESS) {
             throw std::runtime_error("Failed to create ray tracing pipeline layout");
@@ -685,15 +688,17 @@ namespace core {
         rayPipelineInfo.maxPipelineRayRecursionDepth = 2; // Ajustar según necesidades
         rayPipelineInfo.layout = m_rtPipelineLayout;
 
+        printf("Preparing to create RT pipeline\n");
+
         result = vkCreateRayTracingPipelinesKHR(*m_device, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &rayPipelineInfo, nullptr, &m_rtPipeline);
         if (result != VK_SUCCESS) {
             throw std::runtime_error("Failed to create ray tracing pipeline");
         }
 
         // 5. Limpiar módulos de shader
-        vkDestroyShaderModule(*m_device, raygenModule, nullptr);
-        vkDestroyShaderModule(*m_device, missModule, nullptr);
-        vkDestroyShaderModule(*m_device, chitModule, nullptr);
+        //vkDestroyShaderModule(*m_device, raygenModule, nullptr);
+        //vkDestroyShaderModule(*m_device, missModule, nullptr);
+        //vkDestroyShaderModule(*m_device, chitModule, nullptr);
 
         printf("Ray tracing pipeline created successfully\n");
     }
@@ -806,7 +811,10 @@ namespace core {
 
         // Submit y esperar
         core::VulkanQueue* pQueue = m_vkcore->GetQueue();
+        uint32_t ImageIndex = pQueue->AcquireNextImage();
+
         pQueue->SubmitSync(cmdBuf);
+        pQueue->Present(ImageIndex);
         pQueue->WaitIdle();
 
         // Limpiar command buffer
