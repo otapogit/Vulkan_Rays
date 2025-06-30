@@ -798,7 +798,7 @@ namespace core {
             0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
     }
 
-    void Raytracer::render(int width, int height) {
+    void Raytracer::render(int width, int height, bool saveImage, const std::string& filename) {
         VkCommandBuffer cmdBuf;
         m_vkcore->CreateCommandBuffer(1, &cmdBuf);
 
@@ -819,6 +819,10 @@ namespace core {
         pQueue->SubmitSync(cmdBuf);
         pQueue->Present(ImageIndex);
         pQueue->WaitIdle();
+
+        if (saveImage && !filename.empty()) {
+            saveImageToPNG(filename, width, height);
+        }
 
         // Limpiar command buffer
         vkFreeCommandBuffers(m_vkcore->GetDevice(), m_cmdBufPool, 1, &cmdBuf);
@@ -933,4 +937,5 @@ namespace core {
         }
         throw std::runtime_error("Failed to find suitable memory type!");
     }
+
 }

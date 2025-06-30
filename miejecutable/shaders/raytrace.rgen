@@ -7,6 +7,8 @@
 layout(binding = 1, set = 0) uniform accelerationStructureEXT topLevelAS;
 layout(binding = 2, set = 0, rgba8) uniform image2D image;
 
+//layout (binding = 1, set = 1) readonly uniform UniformBuffer { mat4 MVP; } ubo;
+
 layout(location = 0) rayPayloadEXT vec3 hitValue;
 
 void main() {
@@ -17,6 +19,12 @@ void main() {
     vec4 origin = vec4(0,0,2,1);
     vec4 target = vec4(d.x, d.y, 0, 1);
     vec4 direction = vec4(normalize(target.xyz - origin.xyz), 0);
+
+    /*
+     vec4 origin = ubo.MVP * vec4(0,0,2,1);
+    vec4 target = ubo.MVP * vec4(d.x, d.y, 0, 1);
+    vec4 direction = ubo.MVP * vec4(normalize(target.xyz - origin.xyz), 0);
+    */
 
     uint rayFlags = gl_RayFlagsOpaqueEXT;
     uint cullMask = 0xff;

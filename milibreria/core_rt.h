@@ -101,7 +101,7 @@ namespace core {
 		void createRtPipeline(VkShaderModule rgenModule, VkShaderModule rmissModule, VkShaderModule rchitModule);
 		void createRtShaderBindingTable();
 		void raytrace(VkCommandBuffer cmdBuf, int width, int height);
-		void render(int width, int height);
+		void render(int width, int height, bool saveImage = false, const std::string& filename = "");
 	private:
 
 		void createOutImage(int windowwidth, int windowheight);

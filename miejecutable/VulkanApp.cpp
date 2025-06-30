@@ -96,6 +96,8 @@ public:
 			vkDestroyShaderModule(m_vkcore.GetDevice(), rgen, nullptr);
 			vkDestroyShaderModule(m_vkcore.GetDevice(), rmiss, nullptr);
 			vkDestroyShaderModule(m_vkcore.GetDevice(), rchit, nullptr);
+
+			m_raytracer.render(800, 800, true, "Test1.png");
 		}
 
 		CreateCommandBuffers();

@@ -85,7 +85,7 @@ namespace core {
 			destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 		}
 
-		if (OldLayout == VK_IMAGE_LAYOUT_UNDEFINED &&
+		else if (OldLayout == VK_IMAGE_LAYOUT_UNDEFINED &&
 			NewLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
 			barrier.srcAccessMask = 0;
 			barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
