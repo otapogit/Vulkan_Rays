@@ -80,10 +80,14 @@ public:
 			m_raytracer.initRayTracing(m_vkcore.GetSelectedPhysicalDevice(), &m_device);
 			m_raytracer.setup(m_vkcore.GetCommandPool(), &m_vkcore);
 
-			//da error
+			//ver como pasar las matrices de modelo
 			m_raytracer.createBottomLevelAS(meshes);
 			m_raytracer.createTopLevelAS();
 			m_raytracer.createRtDescriptorSet();
+			m_raytracer.createMvpDescriptorSet();
+
+			glm::mat4 WVP = glm::inverse(m_pCamera->GetVPMatrix());
+			m_raytracer.UpdateMvpMatrix(WVP);
 
 			VkShaderModule rgen = core::CreateShaderModuleFromText(m_vkcore.GetDevice(), "shaders/raytrace.rgen");
 			VkShaderModule rmiss = core::CreateShaderModuleFromText(m_vkcore.GetDevice(), "shaders/raytrace.rmiss");

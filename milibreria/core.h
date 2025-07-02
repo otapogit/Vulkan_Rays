@@ -55,6 +55,7 @@ namespace core {
 		void CreateTexture(const char* filename, VulkanTexture& Tex);
 		void CreateTextureImage(VulkanTexture& Tex, uint32_t ImageWidth, uint32_t ImageHeight, VkFormat TexFormat);
 		BufferMemory CreateBufferBlas(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags flags);
+		BufferMemory CreateBufferACC(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags flags);
 
 		void TransitionImageLayout(VkImage& Image, VkFormat Format, VkImageLayout OldLayout, VkImageLayout NewLayout);
 

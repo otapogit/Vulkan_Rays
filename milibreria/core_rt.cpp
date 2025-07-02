@@ -549,6 +549,111 @@ namespace core {
         vkUpdateDescriptorSets(*m_device, (uint32_t)WriteDescriptorSet.size(), WriteDescriptorSet.data(), 0, NULL);
     }
 
+    void Raytracer::createMvpDescriptorSet() {
+        CreateMvpDescriptorPool(1);
+        printf("Creating MVP descriptor set layout\n");
+        CreateMvpDescriptorSetLayout();
+        printf("Creating MVP Buffer\n");
+        CreateMvpBuffer();
+        printf("Allocating MVP Descriptor set\n");
+        AllocateMvpDescriptorSet();
+        printf("Writing MVP Descriptor set\n");
+        WriteMvpBuffer();
+    }
+    // Crear el pool de descriptores para MVP
+    void Raytracer::CreateMvpDescriptorPool(int NumImages) {
+        std::vector<VkDescriptorPoolSize> poolSizes;
+
+        // Pool para uniform buffer (MVP matrix)
+        VkDescriptorPoolSize uniformPoolSize = {};
+        uniformPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uniformPoolSize.descriptorCount = (uint32_t)NumImages;
+        poolSizes.push_back(uniformPoolSize);
+
+        VkDescriptorPoolCreateInfo PoolInfo = {};
+        PoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        PoolInfo.flags = 0;
+        PoolInfo.maxSets = (uint32_t)NumImages;
+        PoolInfo.poolSizeCount = (uint32_t)poolSizes.size();
+        PoolInfo.pPoolSizes = poolSizes.data();
+
+        VkResult res = vkCreateDescriptorPool(*m_device, &PoolInfo, NULL, &m_mvpDescPool);
+        CHECK_VK_RESULT(res, "vkCreateDescriptorPool MVP");
+        printf("MVP Descriptor pool created\n");
+    }
+
+    // Crear el layout del descriptor set para MVP
+    void Raytracer::CreateMvpDescriptorSetLayout() {
+        std::vector<VkDescriptorSetLayoutBinding> LayoutBindings;
+
+        VkDescriptorSetLayoutBinding MvpLayoutBinding = {};
+        MvpLayoutBinding.binding = 1; // Binding 0 para la matriz MVP
+        MvpLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        MvpLayoutBinding.descriptorCount = 1;
+        // Puedes usar VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR dependiendo de dónde lo uses
+        MvpLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+
+        LayoutBindings.push_back(MvpLayoutBinding);
+
+        VkDescriptorSetLayoutCreateInfo LayoutInfo = {};
+        LayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        LayoutInfo.pNext = NULL;
+        LayoutInfo.flags = 0;
+        LayoutInfo.bindingCount = (uint32_t)LayoutBindings.size();
+        LayoutInfo.pBindings = LayoutBindings.data();
+
+        VkResult res = vkCreateDescriptorSetLayout(*m_device, &LayoutInfo, NULL, &m_mvpDescSetLayout);
+        CHECK_VK_RESULT(res, "vkCreateDescriptorSetLayout MVP");
+    }
+
+    // Alocar el descriptor set para MVP
+    void Raytracer::AllocateMvpDescriptorSet() {
+        VkDescriptorSetAllocateInfo allocateInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+        allocateInfo.descriptorPool = m_mvpDescPool;
+        allocateInfo.descriptorSetCount = 1;
+        allocateInfo.pSetLayouts = &m_mvpDescSetLayout;
+
+        VkResult res = vkAllocateDescriptorSets(*m_device, &allocateInfo, &m_mvpDescSet);
+        CHECK_VK_RESULT(res, "vkAllocateDescriptorSets MVP");
+    }
+
+    // Crear el buffer para la matriz MVP
+    void Raytracer::CreateMvpBuffer() {
+        VkDeviceSize bufferSize = sizeof(glm::mat4); // Asumiendo que usas glm::mat4
+
+        m_mvpBufferMemory = m_vkcore->CreateBufferACC(
+            bufferSize,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        );
+
+        printf("MVP Buffer created successfully\n");
+    }
+
+    // Escribir/actualizar el buffer MVP
+    void Raytracer::WriteMvpBuffer() {
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = m_mvpBufferMemory.m_buffer;
+        bufferInfo.offset = 0;
+        bufferInfo.range = sizeof(glm::mat4);
+
+        VkWriteDescriptorSet descriptorWrite{};
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = m_mvpDescSet;
+        descriptorWrite.dstBinding = 1;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pBufferInfo = &bufferInfo;
+
+        vkUpdateDescriptorSets(*m_device, 1, &descriptorWrite, 0, nullptr);
+    }
+
+    // Método para actualizar la matriz MVP en runtime
+    void Raytracer::UpdateMvpMatrix(const glm::mat4& mvpMatrix) {
+        m_mvpBufferMemory.Update(*m_device, &mvpMatrix, sizeof(glm::mat4));
+    }
+
     // En tu archivo .cpp, implementa el método:
     void Raytracer::loadRayTracingFunctions() {
         // Cargar funciones de acceleration structure
@@ -667,7 +772,7 @@ namespace core {
 
         // 3. Crear pipeline layout
         //Incluir aqui más sets si necesario
-        std::vector<VkDescriptorSetLayout> rtDescSetLayouts = { m_rtDescSetLayout };
+        std::vector<VkDescriptorSetLayout> rtDescSetLayouts = { m_rtDescSetLayout, m_mvpDescSetLayout };
 
         VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{};
         pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -817,7 +922,7 @@ namespace core {
         uint32_t ImageIndex = pQueue->AcquireNextImage();
 
         pQueue->SubmitSync(cmdBuf);
-        pQueue->Present(ImageIndex);
+        //pQueue->Present(ImageIndex);
         pQueue->WaitIdle();
 
         if (saveImage && !filename.empty()) {

@@ -604,6 +604,9 @@ namespace core {
 	BufferMemory VulkanCore::CreateBufferBlas(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags flags) {
 		return CreateBuffer(size, usage, flags, true);
 	}
+	BufferMemory VulkanCore::CreateBufferACC(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags flags) {
+		return CreateBuffer(size, usage, flags, false);
+	}
 
 	BufferMemory VulkanCore::CreateBuffer(VkDeviceSize Size, VkBufferUsageFlags Usage, VkMemoryPropertyFlags Properties, bool rt) {
 		VkBufferCreateInfo vbCreateInfo = {};

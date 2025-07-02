@@ -92,11 +92,16 @@ namespace core {
 				vkDestroyBuffer(m_device[0], blas.buffer.m_buffer, NULL);
 			}
 			m_blas.clear();
+
+			CleanupMvpDescriptorSet();
+
 			vkDestroyDescriptorPool(*m_device, m_rtDescPool, nullptr);
 			vkDestroyDescriptorSetLayout(*m_device, m_rtDescSetLayout, nullptr);
 			m_outTexture->Destroy(*m_device);
 		}
 		void createRtDescriptorSet();
+		void createMvpDescriptorSet();
+		void UpdateMvpMatrix(const glm::mat4& mvpMatrix);
 
 		void createRtPipeline(VkShaderModule rgenModule, VkShaderModule rmissModule, VkShaderModule rchitModule);
 		void createRtShaderBindingTable();
@@ -117,10 +122,28 @@ namespace core {
 		void CreateRtDescriptorSetLayout();
 		void AllocateRtDescriptorSet();
 		void WriteAccStructure();
+		
+		void CreateMvpDescriptorPool(int NumImages);
+		void CreateMvpDescriptorSetLayout();
+		void AllocateMvpDescriptorSet();
+		void CreateMvpBuffer();
+		void WriteMvpBuffer();
+
 
 		void saveImageToPNG(const std::string& filename, int width, int height);
 		void createStagingBuffer(VkDeviceSize size, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 		uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+
+		void CleanupMvpDescriptorSet() {
+			m_mvpBufferMemory.Destroy(*m_device);
+
+			if (m_mvpDescSetLayout != VK_NULL_HANDLE) {
+				vkDestroyDescriptorSetLayout(*m_device, m_mvpDescSetLayout, nullptr);
+			}
+			if (m_mvpDescPool != VK_NULL_HANDLE) {
+				vkDestroyDescriptorPool(*m_device, m_mvpDescPool, nullptr);
+			}
+		}
 
 		VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_rtProperties{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR };
 		core::PhysicalDevice m_physicaldevice;
@@ -154,6 +177,11 @@ namespace core {
 		VkDescriptorPool                                m_rtDescPool;
 		VkDescriptorSetLayout                           m_rtDescSetLayout;
 		VkDescriptorSet                                 m_rtDescSet;
+
+		VkDescriptorPool m_mvpDescPool;
+		VkDescriptorSetLayout m_mvpDescSetLayout;
+		VkDescriptorSet m_mvpDescSet;
+		BufferMemory m_mvpBufferMemory;
 
 		VkPipeline m_rtPipeline = VK_NULL_HANDLE;
 		VkPipelineLayout m_rtPipelineLayout = VK_NULL_HANDLE;
