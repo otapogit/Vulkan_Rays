@@ -86,7 +86,9 @@ public:
 			m_raytracer.createRtDescriptorSet();
 			m_raytracer.createMvpDescriptorSet();
 
-			glm::mat4 WVP = glm::inverse(m_pCamera->GetVPMatrix());
+			glm::mat4 WVP = glm::affineInverse(m_pCamera->GetVPMatrix());
+
+
 			m_raytracer.UpdateMvpMatrix(WVP);
 
 			VkShaderModule rgen = core::CreateShaderModuleFromText(m_vkcore.GetDevice(), "shaders/raytrace.rgen");

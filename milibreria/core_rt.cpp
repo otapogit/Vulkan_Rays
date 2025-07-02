@@ -773,6 +773,7 @@ namespace core {
         // 3. Crear pipeline layout
         //Incluir aqui más sets si necesario
         std::vector<VkDescriptorSetLayout> rtDescSetLayouts = { m_rtDescSetLayout, m_mvpDescSetLayout };
+        m_rtDescSets = { m_rtDescSet, m_mvpDescSet };
 
         VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{};
         pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -888,7 +889,7 @@ namespace core {
         // 2. Bind pipeline y descriptor sets
         vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline);
         vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout,
-            0, 1, &m_rtDescSet, 0, nullptr);
+            0, m_rtDescSets.size(), m_rtDescSets.data(), 0, nullptr);
 
         // 3. Ejecutar ray tracing
         vkCmdTraceRaysKHR(cmdBuf, &m_rgenRegion, &m_missRegion, &m_hitRegion, &m_callRegion, width, height, 1);

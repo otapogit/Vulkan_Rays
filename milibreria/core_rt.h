@@ -177,6 +177,7 @@ namespace core {
 		VkDescriptorPool                                m_rtDescPool;
 		VkDescriptorSetLayout                           m_rtDescSetLayout;
 		VkDescriptorSet                                 m_rtDescSet;
+		std::vector<VkDescriptorSet>					m_rtDescSets;
 
 		VkDescriptorPool m_mvpDescPool;
 		VkDescriptorSetLayout m_mvpDescSetLayout;
