@@ -4,104 +4,104 @@
 #include <array>
 
 namespace core {
-	//--------------------------------------------------------------------------------------------------
-	// Initialize Vulkan ray tracing
-	// #VKRay
+    //--------------------------------------------------------------------------------------------------
+    // Initialize Vulkan ray tracing
+    // #VKRay
 
-	Raytracer::Raytracer() {}
+    Raytracer::Raytracer() {}
 
-	Raytracer::~Raytracer(){
+    Raytracer::~Raytracer() {
     }
 
-	/*
-	* Metodo para pasar todos los componentes necesarios del core aqui
-	* Quiero mantener encapsulado de cierta manera el raytracing
-    * 
+    /*
+    * Metodo para pasar todos los componentes necesarios del core aqui
+    * Quiero mantener encapsulado de cierta manera el raytracing
+    *
     * Componentes necesarios por ahora: Core, MEshes, tamaño textura de salida
-	*/
-	void Raytracer::setup( VkCommandPool pool, core::VulkanCore* core) {
+    */
+    void Raytracer::setup(VkCommandPool pool, core::VulkanCore* core) {
 
-		m_cmdBufPool = pool;
+        m_cmdBufPool = pool;
         m_vkcore = core;
         loadRayTracingFunctions();
         m_outTexture = new core::VulkanTexture();
-        createOutImage(800,800, m_outTexture);
+        createOutImage(800, 800, m_outTexture);
     }
 
 
-	void Raytracer::initRayTracing(core::PhysicalDevice physdev, VkDevice* dev)
-	{
+    void Raytracer::initRayTracing(core::PhysicalDevice physdev, VkDevice* dev)
+    {
         m_device = dev;
-		// Requesting ray tracing properties
-		VkPhysicalDeviceProperties2 prop2{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
-		prop2.pNext = &m_rtProperties;
-		vkGetPhysicalDeviceProperties2(physdev.m_physDevice, &prop2);
-	}
+        // Requesting ray tracing properties
+        VkPhysicalDeviceProperties2 prop2{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
+        prop2.pNext = &m_rtProperties;
+        vkGetPhysicalDeviceProperties2(physdev.m_physDevice, &prop2);
+    }
 
-	//--------------------------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------------------------------
 // Convert an OBJ model into the ray tracing geometry used to build the BLAS
 //
-	auto Raytracer::objectToVkGeometryKHR(const core::SimpleMesh& model)
-	{
-		// BLAS builder requires raw device addresses.
-		VkDeviceAddress vertexAddress = GetBufferDeviceAddress(*m_device, model.m_vb.m_buffer);
-		VkDeviceAddress indexAddress = GetBufferDeviceAddress(*m_device, model.m_indexbuffer.m_buffer);
+    auto Raytracer::objectToVkGeometryKHR(const core::SimpleMesh& model)
+    {
+        // BLAS builder requires raw device addresses.
+        VkDeviceAddress vertexAddress = GetBufferDeviceAddress(*m_device, model.m_vb.m_buffer);
+        VkDeviceAddress indexAddress = GetBufferDeviceAddress(*m_device, model.m_indexbuffer.m_buffer);
 
-		uint32_t maxPrimitiveCount = model.m_vertexBufferSize / 3;
+        uint32_t maxPrimitiveCount = model.m_vertexBufferSize / 3;
 
-		// Describe buffer as array of VertexObj.
-		VkAccelerationStructureGeometryTrianglesDataKHR triangles{ VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR };
-		triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;  // vec3 vertex position data.
-		triangles.vertexData.deviceAddress = vertexAddress;
-		triangles.vertexStride = sizeof(core::VertexObj);
-		// Describe index data (32-bit unsigned int)
-		triangles.indexType = VK_INDEX_TYPE_UINT32;
-		triangles.indexData.deviceAddress = indexAddress;
-		// Indicate identity transform by setting transformData to null device pointer.
-		//triangles.transformData = {};
-		triangles.maxVertex = model.m_vertexBufferSize - 1;
+        // Describe buffer as array of VertexObj.
+        VkAccelerationStructureGeometryTrianglesDataKHR triangles{ VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR };
+        triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;  // vec3 vertex position data.
+        triangles.vertexData.deviceAddress = vertexAddress;
+        triangles.vertexStride = sizeof(core::VertexObj);
+        // Describe index data (32-bit unsigned int)
+        triangles.indexType = VK_INDEX_TYPE_UINT32;
+        triangles.indexData.deviceAddress = indexAddress;
+        // Indicate identity transform by setting transformData to null device pointer.
+        //triangles.transformData = {};
+        triangles.maxVertex = model.m_vertexBufferSize - 1;
 
-		// Identify the above data as containing opaque triangles.
-		VkAccelerationStructureGeometryKHR asGeom{ VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR };
-		asGeom.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
-		asGeom.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
-		asGeom.geometry.triangles = triangles;
+        // Identify the above data as containing opaque triangles.
+        VkAccelerationStructureGeometryKHR asGeom{ VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR };
+        asGeom.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
+        asGeom.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
+        asGeom.geometry.triangles = triangles;
 
-		// The entire array will be used to build the BLAS.
-		VkAccelerationStructureBuildRangeInfoKHR offset;
-		offset.firstVertex = 0;
-		offset.primitiveCount = maxPrimitiveCount;
-		offset.primitiveOffset = 0;
-		offset.transformOffset = 0;
+        // The entire array will be used to build the BLAS.
+        VkAccelerationStructureBuildRangeInfoKHR offset;
+        offset.firstVertex = 0;
+        offset.primitiveCount = maxPrimitiveCount;
+        offset.primitiveOffset = 0;
+        offset.transformOffset = 0;
 
-		// Our blas is made from only one geometry, but could be made of many geometries
-		core::BlasInput input;
-		input.asGeometry.emplace_back(asGeom);
-		input.asBuildOffsetInfo.emplace_back(offset);
+        // Our blas is made from only one geometry, but could be made of many geometries
+        core::BlasInput input;
+        input.asGeometry.emplace_back(asGeom);
+        input.asBuildOffsetInfo.emplace_back(offset);
 
         printf("BLAS created for %d triangles\n", maxPrimitiveCount);
 
-		return input;
-	}
+        return input;
+    }
 
-	// También necesitarás actualizar tu método createBottomLevelAS:
-	void Raytracer::createBottomLevelAS(std::vector<core::SimpleMesh> meshes) {
-		// BLAS - Storing each primitive in a geometry
-		std::vector<core::BlasInput> allBlas;
-		allBlas.reserve(meshes.size());
+    // También necesitarás actualizar tu método createBottomLevelAS:
+    void Raytracer::createBottomLevelAS(std::vector<core::SimpleMesh> meshes) {
+        // BLAS - Storing each primitive in a geometry
+        std::vector<core::BlasInput> allBlas;
+        allBlas.reserve(meshes.size());
 
         printf("\n");
 
-		for (const core::SimpleMesh& obj : meshes) {
+        for (const core::SimpleMesh& obj : meshes) {
             //Da error aqui
-			auto blas = objectToVkGeometryKHR(obj);
-			allBlas.emplace_back(blas);
-		}
+            auto blas = objectToVkGeometryKHR(obj);
+            allBlas.emplace_back(blas);
+        }
 
 
-		// Ahora puedes llamar a tu implementación
-		buildBlas(allBlas, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
-	}
+        // Ahora puedes llamar a tu implementación
+        buildBlas(allBlas, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
+    }
 
     void Raytracer::buildBlas(std::vector<core::BlasInput>& input, VkBuildAccelerationStructureFlagsKHR flags) {
         uint32_t nbBlas = static_cast<uint32_t>(input.size());
@@ -123,10 +123,10 @@ namespace core {
         }
 
         // 2. Crear buffer de scratch
- 
+
 
         core::BufferMemory blasScratchBuffer = m_vkcore[0].CreateBufferBlas(maxScratchSize, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT);
 
         // Obtener la dirección del device del buffer de scratch
         VkDeviceAddress scratchAddress = GetBufferDeviceAddress(*m_device, blasScratchBuffer.m_buffer);
@@ -139,8 +139,8 @@ namespace core {
 
 
             core::BufferMemory asBuffer = m_vkcore[0].CreateBufferBlas(buildSizes[idx].accelerationStructureSize,
-                                            VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-                                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
             // Crear la acceleration structure
             VkAccelerationStructureCreateInfoKHR createInfo = {};
@@ -248,7 +248,7 @@ namespace core {
         // Crear instancia para cada BLAS
         for (size_t i = 0; i < m_blas.size(); i++) {
             VkAccelerationStructureInstanceKHR instance{};
-            
+
             instance.transform = toTransformMatrixKHR(glm::mat4(1.0f));// Matriz de transformación (identidad por defecto)
             instance.instanceCustomIndex = static_cast<uint32_t>(i);// Índice personalizado de la instancia (accessible en shaders como gl_InstanceCustomIndexEXT)
             instance.accelerationStructureReference = m_blas[i].address;// Referencia a la BLAS
@@ -260,7 +260,7 @@ namespace core {
         printf("\n%d instances pre build\n", instances.size());
 
         buildTlas(instances, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
-    } 
+    }
 
     void Raytracer::buildTlas(const std::vector<VkAccelerationStructureInstanceKHR>& instances,
         VkBuildAccelerationStructureFlagsKHR flags)
@@ -512,6 +512,26 @@ namespace core {
         VkResult res = vkCreateDescriptorSetLayout(*m_device, &LayoutInfo, NULL, &m_rtDescSetLayout);
         CHECK_VK_RESULT(res, "vkCreateDescriptorSetLayout\n");
 
+    }
+
+    void Raytracer::UpdateAccStructure(){
+        std::vector<VkWriteDescriptorSet> WriteDescriptorSet;
+        //solo hay un m_rtDescSet
+        VkAccelerationStructureKHR tlas = m_tlas.handle;
+        VkWriteDescriptorSetAccelerationStructureKHR descASInfo{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR };
+        descASInfo.accelerationStructureCount = 1;
+        descASInfo.pAccelerationStructures = &tlas;
+        VkWriteDescriptorSet wds_t = {};
+        wds_t.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        wds_t.dstSet = m_rtDescSet;
+        wds_t.dstBinding = 1;
+        wds_t.dstArrayElement = 0;
+        wds_t.descriptorCount = 1;
+        wds_t.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+        wds_t.pNext = &descASInfo;
+        WriteDescriptorSet.push_back(wds_t);
+
+        vkUpdateDescriptorSets(*m_device, (uint32_t)WriteDescriptorSet.size(), WriteDescriptorSet.data(), 0, NULL);
     }
 
     void Raytracer::WriteAccStructure() {

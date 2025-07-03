@@ -23,6 +23,10 @@ class VulkanRenderer : public Renderer {
         vkDestroyShaderModule(m_vkcore.GetDevice(), rgen, nullptr);
         vkDestroyShaderModule(m_vkcore.GetDevice(), rmiss, nullptr);
         vkDestroyShaderModule(m_vkcore.GetDevice(), rchit, nullptr);
+
+        m_raytracer.cleanup();
+        vkDestroyRenderPass(m_vkcore.GetDevice(), m_renderPass, NULL);
+        m_outTexture->Destroy(m_vkcore.GetDevice());
     }
 
     /**
@@ -53,6 +57,10 @@ class VulkanRenderer : public Renderer {
         m_raytracer.createRtDescriptorSet();
         m_raytracer.createMvpDescriptorSet();
 
+
+
+        m_raytracer.createRtPipeline(rgen, rmiss, rchit);
+        m_raytracer.createRtShaderBindingTable();
     }
 
 
@@ -73,6 +81,14 @@ the scene with Renderer::addMesh
 
 
     }
+
+    /*
+       Plan para las meshes
+       Add mesh y demás simplemente las crea y las mete en la lista de meshes a raytracear
+       Deja update ccomo sucio, a updatear
+       Una vez vaya a renderizar reconstruir las blas y tlas
+    */
+
 
     /**
      * @brief Add a previously defined mesh to the scene
@@ -142,12 +158,20 @@ instances in the scene)
         m_raytracer.createOutImage(windowwidth, windowheight, m_outTexture);
     }
 
+   
+
+
     /**
      * @brief Renders the scene. The result can be obtained with Renderer::copyResultBytes or Renderer::getResultTextureId
       * @return
       */
     virtual bool render() {
         //Antes de entregar quitar ek guardar en png
+        if (dirtyupdate) {
+            updateMeshes();
+            dirtyupdate = false;
+        }
+
         m_raytracer.render(windowwidth, windowheight, true, "Test1.png");
         return true;
     }
@@ -172,6 +196,13 @@ instances in the scene)
     }
 
     private:
+
+        void updateMeshes() {
+            //m_raytracer.createBottomLevelAS(meshes);
+            m_raytracer.createTopLevelAS();
+            m_raytracer.UpdateAccStructure();
+        }
+
         core::VulkanQueue* m_pQueue;
         core::VulkanCore m_vkcore;
         VkDevice m_device = NULL;

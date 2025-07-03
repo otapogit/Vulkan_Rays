@@ -109,6 +109,7 @@ namespace core {
 		void render(int width, int height, bool saveImage = false, const std::string& filename = "");
 
 		void createOutImage(int windowwidth, int windowheight, VulkanTexture* tex);
+		void UpdateAccStructure();
 
 
 	private:
