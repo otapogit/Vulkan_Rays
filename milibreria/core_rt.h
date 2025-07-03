@@ -107,9 +107,13 @@ namespace core {
 		void createRtShaderBindingTable();
 		void raytrace(VkCommandBuffer cmdBuf, int width, int height);
 		void render(int width, int height, bool saveImage = false, const std::string& filename = "");
+
+		void createOutImage(int windowwidth, int windowheight, VulkanTexture* tex);
+
+
 	private:
 
-		void createOutImage(int windowwidth, int windowheight);
+
 
 		void loadRayTracingFunctions();
 		auto objectToVkGeometryKHR(const core::SimpleMesh& model);

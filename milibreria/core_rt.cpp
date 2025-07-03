@@ -25,7 +25,7 @@ namespace core {
         m_vkcore = core;
         loadRayTracingFunctions();
         m_outTexture = new core::VulkanTexture();
-        createOutImage(800,800);
+        createOutImage(800,800, m_outTexture);
     }
 
 
@@ -695,9 +695,9 @@ namespace core {
         }
     }   
 
-    void Raytracer::createOutImage(int windowwidth, int windowheight) {
+    void Raytracer::createOutImage(int windowwidth, int windowheight, VulkanTexture* tex) {
         VkFormat Format = VK_FORMAT_R8G8B8A8_UNORM;
-        m_vkcore->CreateTextureImage(*m_outTexture, (uint32_t)windowwidth, (uint32_t)windowheight, Format);
+        m_vkcore->CreateTextureImage(*tex, (uint32_t)windowwidth, (uint32_t)windowheight, Format);
     }
 
     void Raytracer::createRtPipeline(VkShaderModule rgenModule, VkShaderModule rmissModule, VkShaderModule rchitModule) {

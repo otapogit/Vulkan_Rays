@@ -58,6 +58,7 @@ namespace core {
 		BufferMemory CreateBufferACC(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags flags);
 
 		void TransitionImageLayout(VkImage& Image, VkFormat Format, VkImageLayout OldLayout, VkImageLayout NewLayout);
+		size_t copyResultBytes(uint8_t* buffer, size_t bufferSize, VulkanTexture* tex, int width, int height);
 
 	private:
 		void CreateInstance(const char* pAppName);
@@ -80,6 +81,7 @@ namespace core {
 		void CopyBufferToImage(VkImage Dst, VkBuffer Src, uint32_t ImageWidth, uint32_t ImageHeight);
 		void SubmitCopyCommand();
 		void CreateDepthResources();
+		void CopyImageToBuffer(VkImage srcImage, VkBuffer dstBuffer, const VkSubresourceLayout& layout, int width, int height);
 
 		VkInstance m_instance = NULL;
 		VkDebugUtilsMessengerEXT m_debugMessenger = VK_NULL_HANDLE;

@@ -46,7 +46,7 @@ the scene with Renderer::addMesh
     virtual TextureId addTexture(uint8_t* texels, uint32_t width,
         uint32_t height, uint32_t bpp);
 
-    virtual deleteTexture(TextureId tid);
+    virtual void deleteTexture(TextureId tid);
 
     virtual bool addLight(const glm::mat4& modelMatrix, MeshId id,
         const glm::vec3& color, LightId lid, TextureId tid = 0);

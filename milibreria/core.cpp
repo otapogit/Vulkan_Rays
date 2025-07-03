@@ -986,4 +986,91 @@ namespace core {
 		}
 	}
 
+	// Método para copiar los contenidos de una VulkanTexture a un buffer
+	size_t VulkanCore::copyResultBytes(uint8_t* buffer, size_t bufferSize, VulkanTexture* tex, int width, int height) {
+		if (!tex || !tex->m_image || !buffer) {
+			return 0;
+		}
+
+		// Obtener las propiedades de la imagen
+		VkImageSubresource subresource = {};
+		subresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		subresource.mipLevel = 0;
+		subresource.arrayLayer = 0;
+
+		VkSubresourceLayout layout;
+		vkGetImageSubresourceLayout(m_device, tex->m_image, &subresource, &layout);
+
+		// Verificar si el buffer es suficientemente grande
+		if (bufferSize < layout.size) {
+			printf("Buffer size insufficient. Required: %zu, Available: %zu\n",
+				(size_t)layout.size, bufferSize);
+			return 0;
+		}
+
+		// Crear un buffer de staging para copiar la imagen
+		VkBufferUsageFlags usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+		BufferMemory stagingBuffer = CreateBuffer(layout.size, usage, properties);
+
+		// Transicionar la imagen al layout apropiado para lectura
+		TransitionImageLayout(tex->m_image, VK_FORMAT_R8G8B8A8_UNORM,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+		// Copiar la imagen al buffer de staging
+		CopyImageToBuffer(tex->m_image, stagingBuffer.m_buffer, layout, width, height);
+
+		// Transicionar la imagen de vuelta al layout original
+		TransitionImageLayout(tex->m_image, VK_FORMAT_R8G8B8A8_UNORM,
+			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+		// Mapear la memoria y copiar al buffer de destino
+		void* pMappedMemory = nullptr;
+		VkResult res = vkMapMemory(m_device, stagingBuffer.m_mem, 0, layout.size, 0, &pMappedMemory);
+		if (res != VK_SUCCESS) {
+			printf("Error mapping memory: %d\n", res);
+			stagingBuffer.Destroy(m_device);
+			return 0;
+		}
+
+		memcpy(buffer, pMappedMemory, layout.size);
+		vkUnmapMemory(m_device, stagingBuffer.m_mem);
+
+		// Limpiar el buffer de staging
+		stagingBuffer.Destroy(m_device);
+
+		return (size_t)layout.size;
+	}
+
+	// Método auxiliar para copiar imagen a buffer
+	void VulkanCore::CopyImageToBuffer(VkImage srcImage, VkBuffer dstBuffer, const VkSubresourceLayout& layout, int width, int height) {
+		BeginCommandBuffer(m_copyCmdBuf, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+		VkBufferImageCopy region = {};
+		region.bufferOffset = 0;
+		region.bufferRowLength = 0;
+		region.bufferImageHeight = 0;
+		region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		region.imageSubresource.mipLevel = 0;
+		region.imageSubresource.baseArrayLayer = 0;
+		region.imageSubresource.layerCount = 1;
+		region.imageOffset = { 0, 0, 0 };
+
+		// Necesitamos conocer las dimensiones de la imagen
+		// Esto podría requerir almacenar width/height en VulkanTexture
+		// Por ahora, asumimos que podemos obtenerlas de alguna manera
+		region.imageExtent = { (uint32_t)layout.rowPitch / 4, // Asumiendo 4 bytes por pixel
+							  (uint32_t)(layout.size / layout.rowPitch),
+							  1 };
+
+		vkCmdCopyImageToBuffer(m_copyCmdBuf, srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			dstBuffer, 1, &region);
+
+		SubmitCopyCommand();
+	}
+
 }
